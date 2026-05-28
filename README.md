@@ -303,4 +303,4 @@ Migración de las fotos de `/assets/img/` a **Cloudinary** o **Supabase Storage*
 
 ---
 
-*Desarrollado con Claude Code · Lima, 2026*
+*Desarrollado por David Landeo · Madrid, 28 Mayo 2026*
