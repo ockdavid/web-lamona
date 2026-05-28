@@ -382,16 +382,456 @@
     }
   }
 
+  /* ── cart ────────────────────────────────── */
+  function initCart() {
+    var WA   = '51997918216';
+    var PRICE = 50;
+    var cart  = [];
+
+    var overlay    = document.getElementById('cart-overlay');
+    var cartBody   = document.getElementById('cart-body');
+    var cartFooter = document.getElementById('cart-footer');
+    var totalAmt   = document.getElementById('cart-total-amt');
+    var countBadge = document.getElementById('cart-count-badge');
+    var navBadge   = document.getElementById('nav-cart-badge');
+    var navBtn     = document.getElementById('nav-cart-btn');
+    var backBtn    = document.getElementById('cart-back');
+    var clearBtn   = document.getElementById('cart-clear');
+    var solicitar  = document.getElementById('cart-solicitar');
+
+    if (!overlay) return;
+
+    /* replace "Pedir" links with "Agregar" buttons */
+    document.querySelectorAll('.product-card').forEach(function (card) {
+      var pedirLink = card.querySelector('.card-footer .btn-wa.btn-sm');
+      if (!pedirLink) return;
+
+      var name  = (card.querySelector('.card-name')  || {}).textContent || '';
+      var cat   = card.getAttribute('data-cat') || '';
+      var img   = card.querySelector('.card-img-wrap img');
+      var photo = img ? img.getAttribute('src') : '';
+
+      var btn = document.createElement('button');
+      btn.type      = 'button';
+      btn.className = 'btn btn-add-cart';
+      btn.textContent = '+ Agregar';
+
+      btn.addEventListener('click', function () {
+        addToCart(name.trim(), cat, photo);
+        btn.textContent = '✓ Añadido';
+        btn.classList.add('added');
+        setTimeout(function () {
+          btn.textContent = '+ Agregar';
+          btn.classList.remove('added');
+        }, 1400);
+      });
+
+      pedirLink.parentNode.replaceChild(btn, pedirLink);
+    });
+
+    function addToCart(name, cat, photo) {
+      var found = null;
+      for (var i = 0; i < cart.length; i++) {
+        if (cart[i].name === name) { found = cart[i]; break; }
+      }
+      if (found) { found.qty++; }
+      else { cart.push({ name: name, cat: cat, photo: photo, qty: 1 }); }
+      updateBadge();
+    }
+
+    function removeItem(name) {
+      cart = cart.filter(function (i) { return i.name !== name; });
+      updateBadge();
+      renderCart();
+    }
+
+    function changeQty(name, delta) {
+      for (var i = 0; i < cart.length; i++) {
+        if (cart[i].name === name) {
+          cart[i].qty += delta;
+          if (cart[i].qty <= 0) { cart.splice(i, 1); }
+          break;
+        }
+      }
+      updateBadge();
+      renderCart();
+    }
+
+    function updateBadge() {
+      var total = cart.reduce(function (s, i) { return s + i.qty; }, 0);
+      if (navBadge) {
+        navBadge.textContent = total;
+        navBadge.style.display = total > 0 ? 'flex' : 'none';
+      }
+    }
+
+    function renderCart() {
+      if (!cartBody) return;
+      var totalQty = cart.reduce(function (s, i) { return s + i.qty; }, 0);
+      var totalVal = cart.reduce(function (s, i) { return s + i.qty * PRICE; }, 0);
+
+      /* count badge in title */
+      if (countBadge) {
+        countBadge.textContent = totalQty || '';
+        countBadge.style.display = totalQty > 0 ? 'inline-flex' : 'none';
+      }
+      if (clearBtn) clearBtn.style.visibility = cart.length > 0 ? 'visible' : 'hidden';
+
+      if (cart.length === 0) {
+        cartBody.innerHTML =
+          '<div class="cart-empty">' +
+            '<p class="cart-empty-serif">Tu selección está vacía.</p>' +
+            '<p>Explora el catálogo y agrega las piezas que te gusten.</p>' +
+            '<button class="btn btn-outline" id="cart-go-back" type="button">Ver catálogo</button>' +
+          '</div>';
+        var goBack = document.getElementById('cart-go-back');
+        if (goBack) goBack.addEventListener('click', closeCart);
+        if (cartFooter) cartFooter.hidden = true;
+        return;
+      }
+
+      var html = '<ul class="cart-list">';
+      cart.forEach(function (item) {
+        var esc = item.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        html +=
+          '<li class="cart-item">' +
+            '<div class="cart-item-img"><img src="' + item.photo + '" alt="' + esc + '" loading="lazy"/></div>' +
+            '<div class="cart-item-info">' +
+              '<span class="cart-item-cat">' + item.cat + '</span>' +
+              '<span class="cart-item-name">' + item.name + '</span>' +
+              '<span class="cart-item-price">S/. ' + (item.qty * PRICE) + '</span>' +
+            '</div>' +
+            '<div class="cart-item-actions">' +
+              '<div class="cart-qty">' +
+                '<button class="cart-qty-btn" type="button" data-name="' + esc + '" data-d="-1">−</button>' +
+                '<span>' + item.qty + '</span>' +
+                '<button class="cart-qty-btn" type="button" data-name="' + esc + '" data-d="1">+</button>' +
+              '</div>' +
+              '<button class="cart-remove" type="button" data-name="' + esc + '" aria-label="Eliminar">✕</button>' +
+            '</div>' +
+          '</li>';
+      });
+      html += '</ul>';
+      cartBody.innerHTML = html;
+
+      cartBody.querySelectorAll('.cart-qty-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          changeQty(b.getAttribute('data-name'), parseInt(b.getAttribute('data-d'), 10));
+        });
+      });
+      cartBody.querySelectorAll('.cart-remove').forEach(function (b) {
+        b.addEventListener('click', function () { removeItem(b.getAttribute('data-name')); });
+      });
+
+      if (cartFooter) cartFooter.hidden = false;
+      if (totalAmt)   totalAmt.textContent = 'S/. ' + totalVal;
+
+      if (solicitar) {
+        var lines = cart.map(function (i) {
+          return '• ' + i.name + ' x' + i.qty + ' — S/. ' + (i.qty * PRICE);
+        });
+        var msg = 'Hola! Me gustaría solicitar las siguientes piezas de La Mona ✨\n\n' +
+                  lines.join('\n') +
+                  '\n\nTotal: S/. ' + totalVal + '\n\n¿Están disponibles? 🌸';
+        solicitar.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent(msg);
+      }
+    }
+
+    function openCart() {
+      renderCart();
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+      overlay.focus();
+    }
+
+    function closeCart() {
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    if (navBtn)   navBtn.addEventListener('click', openCart);
+    if (backBtn)  backBtn.addEventListener('click', closeCart);
+    if (clearBtn) clearBtn.addEventListener('click', function () {
+      cart = [];
+      updateBadge();
+      renderCart();
+    });
+
+    updateBadge();
+  }
+
+  /* ── chatbot ────────────────────────────────── */
+  function initChatbot() {
+    var fab        = document.getElementById('chat-fab');
+    var chatWin    = document.getElementById('chat-win');
+    var closeBtn   = document.getElementById('chat-close');
+    var messagesEl = document.getElementById('chat-messages');
+    var quickEl    = document.getElementById('chat-quick-replies');
+    var form       = document.getElementById('chat-form');
+    var inputEl    = document.getElementById('chat-input');
+    var badge      = document.getElementById('chat-fab-badge');
+    var iconOpen   = fab ? fab.querySelector('.chat-fab-icon--open')  : null;
+    var iconClose  = fab ? fab.querySelector('.chat-fab-icon--close') : null;
+    if (!fab || !chatWin) return;
+
+    var isOpen  = false;
+    var greeted = false;
+    var unread  = 0;
+    var WA      = '51997918216';
+
+    /* ── Knowledge base ─────────────────────── */
+    var KB = {
+      welcome: {
+        text: '¡Hola! Soy <strong>Mona</strong>, tu asistente de La Mona ✨<br>Estoy aquí para ayudarte a encontrar la joya perfecta. ¿En qué te puedo ayudar?',
+        qr: ['Ver materiales', 'Precios', 'Personalización', 'Envíos', 'Ver catálogo', 'Hablar por WhatsApp']
+      },
+      materials: {
+        text: 'Trabajamos con dos materiales de alta calidad:<br><br>🥈 <strong>Plata 925</strong> — plata esterlina pura, duradera e hipoalergénica.<br>✨ <strong>Baño de oro 18k</strong> — acabado dorado elegante sobre plata.<br><br>Ambas opciones están disponibles en todos nuestros diseños.',
+        qr: ['¿Cuánto cuestan?', 'Ver collares', 'Ver anillos', 'Ver pulseras', 'Ver aretes']
+      },
+      price: {
+        text: 'Todas nuestras piezas tienen un solo precio: <strong>S/. 50</strong> 🌸<br><br>No importa si es un collar, anillo, pulsera o arete — el precio es el mismo para todos los diseños. ¡Y la personalización con tu nombre o iniciales está incluida!',
+        qr: ['¿Cómo personalizo?', 'Ver el catálogo', 'Solicitar por WhatsApp']
+      },
+      personalization: {
+        text: '¡Sí, personalizamos! Grabamos tu <strong>nombre o iniciales</strong> en cualquier pieza 💛<br><br>El proceso es sencillo:<br>1. Eliges tu joya del catálogo<br>2. Nos escribes por WhatsApp con el texto a grabar<br>3. Te enviamos una foto del boceto antes de empezar<br>4. Solo cuando das el OK comenzamos a trabajar',
+        qr: ['¿Cuánto demora?', 'Ver el catálogo', 'Personalizar ahora']
+      },
+      delivery: {
+        text: '📦 <strong>Envíos a todo el Perú</strong><br><br>🏙️ <strong>Lima:</strong> pago contra entrega<br>🇵🇪 <strong>Provincias:</strong> envío por Olva o Shalom<br><br>Coordinamos todos los detalles por WhatsApp.',
+        qr: ['¿Cuánto cuesta el envío?', '¿Cuánto demora?', 'Hacer un pedido']
+      },
+      shipping_cost: {
+        text: '📦 El costo de envío varía según tu ciudad:<br><br>🏙️ <strong>Lima:</strong> envío gratuito (pago contra entrega)<br>🇵🇪 <strong>Provincias:</strong> costo según Olva o Shalom<br><br>Escríbenos por WhatsApp y te damos el costo exacto para tu ciudad.',
+        qr: ['Hacer un pedido', 'Precios']
+      },
+      timing: {
+        text: '⏱️ Los tiempos de entrega son:<br><br>✏️ <strong>Con grabado:</strong> 3–5 días hábiles<br>💍 <strong>Sin grabado:</strong> 1–3 días hábiles<br><br>Te confirmamos el plazo exacto al hacer tu pedido.',
+        qr: ['Hacer un pedido', 'Ver el catálogo']
+      },
+      catalog: {
+        text: 'Tenemos <strong>69 piezas</strong> en cuatro categorías:<br><br>📿 <strong>Collares</strong> — 25 diseños<br>💍 <strong>Anillos</strong> — 13 diseños<br>🔗 <strong>Pulseras</strong> — 19 diseños<br>📎 <strong>Aretes</strong> — 7 diseños<br><br>Todas a <strong>S/. 50</strong> con opción de grabado personalizado.',
+        qr: ['Ver collares', 'Ver anillos', 'Ver pulseras', 'Ver aretes', 'Ir al catálogo']
+      },
+      collares: {
+        text: '📿 Tenemos <strong>25 diseños de collares</strong> disponibles — desde dijes delicados hasta cadenas más estructuradas, en plata 925 o baño de oro 18k a <strong>S/. 50</strong>.<br><br>Todos pueden personalizarse con tu nombre o iniciales.',
+        qr: ['Ir al catálogo', 'Precios', 'Otros diseños']
+      },
+      anillos: {
+        text: '💍 Contamos con <strong>13 diseños de anillos</strong>, perfectos para regalo o uso diario. En plata 925 o baño de oro 18k a <strong>S/. 50</strong>.<br><br>¡Se pueden personalizar con tus iniciales!',
+        qr: ['Ir al catálogo', 'Precios', 'Otros diseños']
+      },
+      pulseras: {
+        text: '🔗 Tenemos <strong>19 diseños de pulseras</strong>, ideales para regalar. Todas en plata 925 o baño de oro 18k a <strong>S/. 50</strong>.<br><br>Son perfectas para grabar el nombre de alguien especial.',
+        qr: ['Ir al catálogo', 'Precios', 'Otros diseños']
+      },
+      aretes: {
+        text: '📎 Tenemos <strong>7 diseños de aretes</strong>, elegantes y delicados. En plata 925 o baño de oro 18k a <strong>S/. 50</strong> el par.<br><br>También se pueden personalizar con iniciales.',
+        qr: ['Ir al catálogo', 'Precios', 'Otros diseños']
+      },
+      gift: {
+        text: '🎁 ¡Nuestras joyas son un regalo perfecto! Todas incluyen <strong>empaque de regalo</strong> sin costo extra.<br><br>Si no sabes qué elegir, los collares y pulseras son los más populares para regalar. ¿A quién le quieres regalar?',
+        qr: ['Ver collares', 'Ver pulseras', 'Precios', 'Hablar por WhatsApp']
+      },
+      whatsapp: {
+        text: '¡Perfecto! Te conecto con nuestro WhatsApp ahora mismo 📱<br><br>¡Somos muy rápidas respondiendo! 🌸',
+        qr: [],
+        wa: true
+      },
+      fallback: {
+        text: 'Hmm, no entendí del todo 😊 ¿Sobre qué te puedo ayudar?',
+        qr: ['Ver materiales', 'Precios', 'Personalización', 'Envíos', 'Ver catálogo', 'Hablar por WhatsApp']
+      }
+    };
+
+    /* ── Quick reply → intent map ───────────── */
+    var QR = {
+      'Ver materiales': 'materials', 'Materiales': 'materials',
+      'Precios': 'price', '¿Cuánto cuestan?': 'price',
+      'Personalización': 'personalization', '¿Cómo personalizo?': 'personalization',
+      'Personalizar ahora': 'whatsapp',
+      'Envíos': 'delivery',
+      '¿Cuánto cuesta el envío?': 'shipping_cost',
+      '¿Cuánto demora?': 'timing',
+      'Ver catálogo': 'catalog', 'Ver el catálogo': 'catalog',
+      'Ir al catálogo': 'goToCatalog',
+      'Ver collares': 'collares', 'Ver anillos': 'anillos',
+      'Ver pulseras': 'pulseras', 'Ver aretes': 'aretes',
+      'Otros diseños': 'catalog',
+      'Hacer un pedido': 'whatsapp', 'Solicitar por WhatsApp': 'whatsapp',
+      'Hablar por WhatsApp': 'whatsapp'
+    };
+
+    /* ── Keyword detection ───────────────────── */
+    function detect(raw) {
+      var t = raw.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '');
+      if (/hola|buenas|buenos|hi\b|hey\b/.test(t))                         return 'welcome';
+      if (/plata|oro|material|calidad|925|18k|bano|metal/.test(t))         return 'materials';
+      if (/precio|costo|cuanto|vale|soles|s\/|costar/.test(t))             return 'price';
+      if (/graba|nombre|iniciales|personali/.test(t))                      return 'personalization';
+      if (/demora|tarda|tiempo|dias|cuando|rapido/.test(t))                return 'timing';
+      if (/costo.*envi|envi.*costo|precio.*envi|envi.*precio/.test(t))     return 'shipping_cost';
+      if (/envi|entrega|despacho|delivery|lima|provincias|olva|shalom/.test(t)) return 'delivery';
+      if (/regalo|regalar/.test(t))                                        return 'gift';
+      if (/catalogo|todos|todo|cuantos|69|piezas/.test(t))                 return 'catalog';
+      if (/collar/.test(t))                                                return 'collares';
+      if (/anillo/.test(t))                                                return 'anillos';
+      if (/pulsera/.test(t))                                               return 'pulseras';
+      if (/arete/.test(t))                                                 return 'aretes';
+      if (/whatsapp|contacto|escribir|hablar|pedido|comprar|solicitar|pedir/.test(t)) return 'whatsapp';
+      return 'fallback';
+    }
+
+    /* ── DOM helpers ─────────────────────────── */
+    function addMsg(html, isUser) {
+      var wrap   = document.createElement('div');
+      wrap.className = 'chat-msg ' + (isUser ? 'chat-msg-user' : 'chat-msg-bot');
+      var bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      if (isUser) { bubble.textContent = html; }
+      else        { bubble.innerHTML   = html; }
+      wrap.appendChild(bubble);
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function showTyping() {
+      var wrap = document.createElement('div');
+      wrap.className = 'chat-msg chat-msg-bot';
+      wrap.id = 'chat-typing';
+      var bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.innerHTML = '<div class="chat-dots"><span></span><span></span><span></span></div>';
+      wrap.appendChild(bubble);
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    function removeTyping() {
+      var el = document.getElementById('chat-typing');
+      if (el) el.parentNode.removeChild(el);
+    }
+
+    function setQR(list) {
+      quickEl.innerHTML = '';
+      if (!list || !list.length) return;
+      list.forEach(function(label) {
+        var btn = document.createElement('button');
+        btn.className = 'chat-qr-btn';
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.addEventListener('click', function() { handleInput(label, true); });
+        quickEl.appendChild(btn);
+      });
+    }
+
+    function updateBadge() {
+      if (unread > 0 && !isOpen) {
+        badge.textContent = unread;
+        badge.removeAttribute('hidden');
+      } else {
+        badge.setAttribute('hidden', '');
+      }
+    }
+
+    /* ── Respond ─────────────────────────────── */
+    function respond(intent) {
+      if (intent === 'goToCatalog') {
+        addMsg('Aquí te llevo al catálogo completo 👇', false);
+        setQR([]);
+        setTimeout(function() {
+          var sec = document.getElementById('catalogo');
+          if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          closeChat();
+        }, 700);
+        return;
+      }
+
+      var r = KB[intent] || KB.fallback;
+      var delay = 650 + Math.random() * 450;
+      showTyping();
+      setQR([]);
+      setTimeout(function() {
+        removeTyping();
+        addMsg(r.text, false);
+        setQR(r.qr || []);
+        if (r.wa) {
+          setTimeout(function() {
+            var url = 'https://wa.me/' + WA + '?text=' +
+              encodeURIComponent('Hola! Vi tu catálogo y me interesa hacer un pedido 🌸');
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }, 700);
+        }
+        if (!isOpen) { unread++; updateBadge(); }
+      }, delay);
+    }
+
+    /* ── Handle user input ───────────────────── */
+    function handleInput(text, isQR) {
+      if (!text.trim()) return;
+      addMsg(text, true);
+      setQR([]);
+      if (isQR && QR[text] !== undefined) {
+        respond(QR[text]);
+      } else {
+        respond(detect(text));
+      }
+    }
+
+    /* ── Open / close ────────────────────────── */
+    function openChat() {
+      isOpen = true;
+      chatWin.removeAttribute('hidden');
+      iconOpen.setAttribute('hidden', '');
+      iconClose.removeAttribute('hidden');
+      fab.style.animation = 'none';
+      unread = 0;
+      updateBadge();
+      if (!greeted) {
+        greeted = true;
+        setTimeout(function() { respond('welcome'); }, 380);
+      }
+      setTimeout(function() { inputEl.focus(); }, 300);
+    }
+    function closeChat() {
+      isOpen = false;
+      chatWin.setAttribute('hidden', '');
+      iconOpen.removeAttribute('hidden');
+      iconClose.setAttribute('hidden', '');
+      fab.style.animation = '';
+    }
+
+    /* ── Events ──────────────────────────────── */
+    fab.addEventListener('click', function() {
+      if (isOpen) closeChat(); else openChat();
+    });
+    closeBtn.addEventListener('click', closeChat);
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var val = inputEl.value.trim();
+      if (!val) return;
+      inputEl.value = '';
+      handleInput(val, false);
+    });
+
+    /* show badge after 4s to attract attention */
+    setTimeout(function() {
+      if (!greeted) { unread = 1; updateBadge(); }
+    }, 4000);
+  }
+
   /* ── boot ────────────────────────────────── */
   function boot() {
     safe(initNav,            'initNav');
-    safe(initCatalogExpand,  'initCatalogExpand');
+    /* initCatalogExpand desactivado: la ventana scrolleable reemplaza el "ver más" */
     safe(initFilter,         'initFilter');
     safe(initReveals,        'initReveals');
     safe(initCounters,       'initCounters');
     safe(initGSAP,           'initGSAP');
     safe(initTilt,           'initTilt');
     safe(initPersonalizer,   'initPersonalizer');
+    safe(initCart,           'initCart');
+    safe(initChatbot,        'initChatbot');
   }
 
   if (document.readyState === 'loading') {

@@ -30,12 +30,18 @@
         <a href="#personalizar">Personalizar</a>
         <a href="#nosotros">Nosotros</a>
       </nav>
-      <a href="https://wa.me/51997918216?text=Hola!%20Vi%20tu%20cat%C3%A1logo%20y%20me%20interesa%20hacer%20un%20pedido%20%F0%9F%8C%B8"
-         target="_blank" rel="noopener noreferrer"
-         class="btn btn-wa nav-cta" aria-label="Contactar por WhatsApp">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.855L0 24l6.335-1.508C8.058 23.447 9.993 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.637-.498-5.149-1.367l-.369-.218-3.762.896.94-3.668-.24-.376C2.513 15.661 2 13.895 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-        WhatsApp
-      </a>
+      <div class="nav-actions">
+        <button id="nav-cart-btn" class="nav-cart-btn" type="button" aria-label="Ver carrito">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          <span class="nav-cart-badge" id="nav-cart-badge">0</span>
+        </button>
+        <a href="https://wa.me/51997918216?text=Hola!%20Vi%20tu%20cat%C3%A1logo%20y%20me%20interesa%20hacer%20un%20pedido%20%F0%9F%8C%B8"
+           target="_blank" rel="noopener noreferrer"
+           class="btn btn-wa nav-cta" aria-label="Contactar por WhatsApp">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.855L0 24l6.335-1.508C8.058 23.447 9.993 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.637-.498-5.149-1.367l-.369-.218-3.762.896.94-3.668-.24-.376C2.513 15.661 2 13.895 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+      </div>
       <button class="nav-hamburger" aria-label="Menú" aria-expanded="false" data-hamburger>
         <span></span><span></span><span></span>
       </button>
@@ -141,6 +147,7 @@
       </div>
 
       <!-- Grid de productos — hardcoded para no-JS -->
+      <div class="catalog-window">
       <div class="product-grid" id="product-grid" data-products role="tabpanel">
 
         <!-- ANILLOS -->
@@ -494,6 +501,11 @@
         </article>
 
       </div><!-- /product-grid -->
+      </div><!-- /catalog-window -->
+      <div class="catalog-hint">
+        <span>↓ scroll para ver más piezas</span>
+        <span class="catalog-hint-count">77 piezas</span>
+      </div>
     </div>
   </section>
 
@@ -602,6 +614,47 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════
+       PROCESO — Cuatro pasos, una sola pieza
+  ══════════════════════════════════════════════════ -->
+  <section class="proceso" id="proceso" aria-label="Nuestro proceso">
+    <div class="container">
+      <div class="proceso-header reveal" data-reveal>
+        <div>
+          <p class="proceso-eyebrow">— Proceso</p>
+          <h2 class="proceso-title">Cuatro pasos,<br>una sola <em>pieza</em>.</h2>
+        </div>
+        <p class="proceso-sub">No producimos en serie. Cada pedido se confirma y se trabaja de forma individual — y todo lo coordinamos por WhatsApp.</p>
+      </div>
+      <div class="proceso-grid">
+        <div class="proceso-step reveal" data-reveal>
+          <span class="proceso-num">— 01</span>
+          <h3 class="proceso-h">Eliges <em>tu joya</em></h3>
+          <p>Escoges del catálogo o personalizas con tu nombre/iniciales. Coordinamos todo por WhatsApp en minutos.</p>
+          <div class="proceso-img"><img src="assets/img/foto-44.jpeg" alt="Elige tu joya" loading="lazy" /></div>
+        </div>
+        <div class="proceso-step reveal" data-reveal>
+          <span class="proceso-num">— 02</span>
+          <h3 class="proceso-h">Confirmamos <em>diseño</em></h3>
+          <p>Te enviamos foto o boceto del grabado antes de empezar. Recién cuando das el OK comenzamos a trabajar la pieza.</p>
+          <div class="proceso-img"><img src="assets/img/foto-30.jpeg" alt="Confirmamos el diseño" loading="lazy" /></div>
+        </div>
+        <div class="proceso-step reveal" data-reveal>
+          <span class="proceso-num">— 03</span>
+          <h3 class="proceso-h">Grabado <em>a mano</em></h3>
+          <p>Tu pieza se graba a mano en plata 925 o con baño de oro 18k. Pulida y revisada antes de ir al empaque.</p>
+          <div class="proceso-img"><img src="assets/img/foto-29.jpeg" alt="Grabado a mano" loading="lazy" /></div>
+        </div>
+        <div class="proceso-step reveal" data-reveal>
+          <span class="proceso-num">— 04</span>
+          <h3 class="proceso-h">A tu <em>puerta</em></h3>
+          <p>Empaque de regalo incluido. Pago contra entrega en Lima, envío a todo el Perú vía Olva o Shalom.</p>
+          <div class="proceso-img"><img src="assets/img/foto-26.jpeg" alt="Envío a tu puerta" loading="lazy" /></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
        NOSOTROS
   ══════════════════════════════════════════════════ -->
   <section class="nosotros" id="nosotros" aria-label="Sobre la Mona">
@@ -670,6 +723,69 @@
       </div>
     </div>
   </footer>
+
+  <!-- ══════════════════ CARRITO ══════════════════ -->
+  <div class="cart-overlay" id="cart-overlay" hidden aria-modal="true" role="dialog" aria-label="Mi selección">
+    <div class="cart-header" id="cart-header">
+      <div class="container cart-header-inner">
+        <button class="cart-back" id="cart-back" type="button">← Volver</button>
+        <h2 class="cart-title">Mi selección <span class="cart-count-badge" id="cart-count-badge"></span></h2>
+        <button class="cart-clear" id="cart-clear" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Limpiar todo
+        </button>
+      </div>
+    </div>
+    <div class="cart-body container" id="cart-body"></div>
+    <div class="cart-footer" id="cart-footer" hidden>
+      <div class="container cart-footer-inner">
+        <div class="cart-total">
+          <span class="cart-total-lbl">Total</span>
+          <span class="cart-total-amt" id="cart-total-amt">S/. 0</span>
+        </div>
+        <a class="btn btn-wa cart-solicitar" id="cart-solicitar" href="#" target="_blank" rel="noopener noreferrer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.855L0 24l6.335-1.508C8.058 23.447 9.993 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.637-.498-5.149-1.367l-.369-.218-3.762.896.94-3.668-.24-.376C2.513 15.661 2 13.895 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          Solicitar por WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CHATBOT ══════════════════ -->
+  <div class="chat-widget" id="chat-widget">
+    <div class="chat-win" id="chat-win" hidden>
+      <div class="chat-wh">
+        <div class="chat-avatar-wrap">
+          <img src="assets/img/logo.png" alt="Mona" class="chat-avatar-img" width="38" height="38" />
+          <span class="chat-online-dot"></span>
+        </div>
+        <div class="chat-wh-info">
+          <strong class="chat-wh-name">Mona</strong>
+          <span class="chat-wh-status">Asistente de La Mona · En línea</span>
+        </div>
+        <button class="chat-wh-close" id="chat-close" type="button" aria-label="Cerrar chat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Conversación con Mona"></div>
+      <div class="chat-quick-replies" id="chat-quick-replies"></div>
+      <form class="chat-composer" id="chat-form" autocomplete="off">
+        <input class="chat-input" id="chat-input" type="text" placeholder="Escribe tu pregunta…" maxlength="200" aria-label="Escribe tu mensaje" />
+        <button class="chat-send" type="submit" aria-label="Enviar mensaje">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </form>
+    </div>
+    <button class="chat-fab" id="chat-fab" type="button" aria-label="Abrir asistente virtual">
+      <span class="chat-fab-icon chat-fab-icon--open">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </span>
+      <span class="chat-fab-icon chat-fab-icon--close" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </span>
+      <span class="chat-fab-badge" id="chat-fab-badge" hidden>1</span>
+    </button>
+  </div>
 
   <script defer src="lib/gsap.min.js"></script>
   <script defer src="lib/ScrollTrigger.min.js"></script>
