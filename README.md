@@ -42,9 +42,19 @@ web-lamona-peru/
 ├── main.js             # Lógica JS completa (IIFE, ~600 líneas)
 ├── styles.css          # Todos los estilos (~1 700 líneas)
 │
+├── admin.html          # Panel de administración de productos (login + dashboard)
+├── admin.js            # Lógica del panel (Supabase Auth + CRUD de productos)
+├── admin.css           # Estilos del panel (mismo sistema de diseño)
+│
+├── supabase/
+│   ├── schema.sql          # Tabla products + políticas RLS (ejecutar en Supabase)
+│   └── README-SUPABASE.md  # Guía paso a paso para activar la base de datos
+│
 ├── lib/
 │   ├── gsap.min.js         # GSAP 3 (animaciones scroll)
 │   ├── ScrollTrigger.min.js# Plugin ScrollTrigger de GSAP
+│   ├── supabase.min.js     # Cliente de Supabase (UMD, sin npm)
+│   ├── supabase-config.js  # URL, anon key y correos autorizados
 │   └── manifest.js         # Base de datos de productos y config de marca
 │
 ├── assets/
@@ -251,31 +261,26 @@ El sitio está conectado al repositorio de GitHub [`ockdavid/web-lamona`](https:
 
 ---
 
+## Panel de Administración (`admin.html`)
+
+Implementado (Fases 2 y 3 del roadmap). Accesible desde el **ícono de usuario** en la esquina superior derecha del sitio.
+
+- **Login restringido**: solo 3 correos autorizados pueden entrar (Supabase Auth + políticas RLS). La lista se define en `lib/supabase-config.js` y en `supabase/schema.sql`.
+- **Dashboard de productos**: grid visual con las fotos de las 69 piezas, búsqueda por texto y filtros por categoría.
+- **Editor por producto** (drawer lateral): nombre, categoría, etiqueta, material, costo (S/.), descripción, foto (con selector visual de las 78 fotos del sitio) y switch de visibilidad.
+- **Guardado en base de datos**: botón "Guardar producto" por pieza, o "Guardar cambios" global que sube todas las piezas editadas a Supabase de una vez.
+- **Crear / eliminar productos** desde el panel.
+- **Importación inicial**: con la tabla vacía, un botón importa las 69 piezas de `lib/manifest.js` a Supabase con un clic.
+- **Modo demo**: mientras Supabase no esté configurado, el panel funciona con los datos de `manifest.js` para probar la interfaz (los cambios no persisten).
+
+> **Para activar Supabase**: sigue los 5 pasos de [`supabase/README-SUPABASE.md`](supabase/README-SUPABASE.md) (~10 min).
+
+---
+
 ## Roadmap — Próximas Funcionalidades
 
-### Fase 2 — Base de datos dinámica (Supabase)
-Actualmente los productos están hardcodeados en `lib/manifest.js`. El plan es migrar a una base de datos en **Supabase (PostgreSQL)** para que los productos puedan gestionarse sin tocar código.
-
-```
-Tabla: products
-─────────────────────────────────
-id          uuid (PK)
-name        text
-category    text
-description text
-photo_url   text
-tag         text
-active      boolean
-created_at  timestamp
-```
-
-### Fase 3 — Panel de administración (`/admin`)
-Interfaz visual protegida con contraseña (Supabase Auth) para que la familia pueda:
-- Agregar nuevos productos con foto.
-- Activar / desactivar productos sin borrarlos.
-- Actualizar fotos y descripciones.
-
-Sin conocimientos técnicos requeridos — solo subir foto, escribir nombre y guardar.
+### Catálogo público dinámico
+El panel ya guarda en Supabase, pero el catálogo de `index.html` sigue leyendo de `lib/manifest.js` (las tarjetas están en HTML estático). Próximo paso: renderizar el catálogo desde la tabla `products` para que los cambios del panel se reflejen en el sitio sin tocar código.
 
 ### Fase 4 — Imágenes en la nube
 Migración de las fotos de `/assets/img/` a **Cloudinary** o **Supabase Storage** para:

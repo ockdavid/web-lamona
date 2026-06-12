@@ -1,0 +1,543 @@
+/* la Mona — admin.js (panel de administración de productos)
+   Vanilla JS, IIFE — sin frameworks, sin build step.
+   Funciona en 2 modos:
+   · CONECTADO : Supabase configurado en lib/supabase-config.js → guarda en BD real.
+   · DEMO      : sin configurar → carga lib/manifest.js, cambios solo en memoria. */
+(function () {
+  'use strict';
+
+  /* ── config y estado ─────────────────────── */
+  var CFG = window.__SUPABASE__ || {};
+  var BRAND = window.__BRAND__ || { products: [], categories: [] };
+
+  var isConfigured =
+    typeof CFG.url === 'string' && CFG.url.indexOf('https://') === 0 &&
+    typeof CFG.anonKey === 'string' && CFG.anonKey.length > 40;
+
+  var db = null;            /* cliente supabase */
+  var demoMode = false;
+  var products = [];        /* estado local de productos */
+  var dirty = {};           /* ids con cambios sin guardar */
+  var currentId = null;     /* producto abierto en el drawer */
+  var activeCat = 'todos';
+  var searchTerm = '';
+  var TOTAL_FOTOS = 78;     /* assets/img/foto-1.jpeg … foto-78.jpeg */
+
+  if (isConfigured && window.supabase) {
+    db = window.supabase.createClient(CFG.url, CFG.anonKey);
+  }
+
+  /* ── helpers DOM ─────────────────────────── */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  var toastTimer = null;
+  function toast(msg, type) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 3200);
+  }
+
+  function isAllowed(email) {
+    var list = (CFG.allowedEmails || []).map(function (e) { return e.toLowerCase().trim(); });
+    return list.indexOf(String(email || '').toLowerCase().trim()) !== -1;
+  }
+
+  function dirtyCount() { return Object.keys(dirty).length; }
+
+  /* ── mapeo manifest → fila de BD ─────────── */
+  function fromManifest(p, i) {
+    return {
+      id: p.id,
+      name: p.name,
+      category: p.cat,
+      description: p.desc || '',
+      material: p.tag === 'Baño de oro' ? 'Baño de oro 18k' : 'Plata 925',
+      price: 50,
+      photo: p.photo || '',
+      tag: p.tag || '',
+      active: true,
+      sort_order: i
+    };
+  }
+
+  /* ══════════════════════════════════════════
+     LOGIN
+  ══════════════════════════════════════════ */
+  function initLogin() {
+    var form = $('login-form');
+    var error = $('login-error');
+
+    if (!isConfigured) {
+      /* sin Supabase: solo modo demo */
+      form.hidden = true;
+      $('login-demo').hidden = false;
+      $('demo-btn').addEventListener('click', function () {
+        demoMode = true;
+        sessionStorage.setItem('lamona_demo', '1');
+        enterAdmin('demo@lamona.pe');
+      });
+      /* sesión demo previa (sobrevive a refresh) */
+      if (sessionStorage.getItem('lamona_demo') === '1') {
+        demoMode = true;
+        enterAdmin('demo@lamona.pe');
+      }
+      return;
+    }
+
+    /* sesión real previa */
+    db.auth.getSession().then(function (res) {
+      var session = res.data && res.data.session;
+      if (session && session.user) {
+        if (isAllowed(session.user.email)) {
+          enterAdmin(session.user.email);
+        } else {
+          db.auth.signOut();
+        }
+      }
+    });
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      error.hidden = true;
+      var email = $('login-email').value.trim();
+      var password = $('login-password').value;
+
+      if (!email || !password) {
+        error.textContent = 'Completa el correo y la contraseña.';
+        error.hidden = false;
+        return;
+      }
+      if (!isAllowed(email)) {
+        error.textContent = 'Este correo no tiene acceso al panel.';
+        error.hidden = false;
+        return;
+      }
+
+      var btn = $('login-submit');
+      btn.disabled = true;
+      btn.textContent = 'Ingresando…';
+
+      db.auth.signInWithPassword({ email: email, password: password })
+        .then(function (res) {
+          if (res.error) {
+            error.textContent = 'Correo o contraseña incorrectos.';
+            error.hidden = false;
+            return;
+          }
+          enterAdmin(res.data.user.email);
+        })
+        .catch(function () {
+          error.textContent = 'No se pudo conectar. Revisa tu internet.';
+          error.hidden = false;
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = 'Ingresar';
+        });
+    });
+  }
+
+  function enterAdmin(email) {
+    $('login-view').hidden = true;
+    $('admin-view').hidden = false;
+    $('topbar-user').textContent = email;
+    $('demo-banner').hidden = !demoMode;
+    loadProducts();
+  }
+
+  function logout() {
+    if (dirtyCount() > 0 && !confirm('Tienes cambios sin guardar. ¿Salir igual?')) return;
+    sessionStorage.removeItem('lamona_demo');
+    if (db) db.auth.signOut();
+    window.location.reload();
+  }
+
+  /* ══════════════════════════════════════════
+     CARGA DE PRODUCTOS
+  ══════════════════════════════════════════ */
+  function loadProducts() {
+    if (demoMode) {
+      products = BRAND.products.map(fromManifest);
+      renderAll();
+      return;
+    }
+    db.from('products').select('*').order('sort_order', { ascending: true })
+      .then(function (res) {
+        if (res.error) {
+          toast('Error al leer la tabla products. ¿Ejecutaste supabase/schema.sql?', 'error');
+          console.warn('[admin]', res.error);
+          products = [];
+          renderAll();
+          return;
+        }
+        products = res.data || [];
+        $('import-banner').hidden = products.length > 0;
+        renderAll();
+      });
+  }
+
+  /* importa el catálogo de lib/manifest.js a la BD (tabla vacía) */
+  function importCatalog() {
+    var rows = BRAND.products.map(fromManifest);
+    var btn = $('import-btn');
+    btn.disabled = true;
+    btn.textContent = 'Importando…';
+    db.from('products').upsert(rows).then(function (res) {
+      btn.disabled = false;
+      btn.textContent = 'Importar catálogo inicial (69 piezas)';
+      if (res.error) {
+        toast('No se pudo importar: ' + res.error.message, 'error');
+        return;
+      }
+      $('import-banner').hidden = true;
+      toast('Catálogo importado: ' + rows.length + ' piezas ✓', 'ok');
+      loadProducts();
+    });
+  }
+
+  /* ══════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════ */
+  function renderAll() {
+    renderFilters();
+    renderGrid();
+    updateSaveAll();
+  }
+
+  function renderFilters() {
+    var wrap = $('cat-filters');
+    var cats = [{ id: 'todos', label: 'Todos' }].concat(
+      (BRAND.categories || []).filter(function (c) { return c.id !== 'todos'; })
+    );
+    wrap.innerHTML = '';
+    cats.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = c.label;
+      b.className = c.id === activeCat ? 'active' : '';
+      b.addEventListener('click', function () {
+        activeCat = c.id;
+        renderFilters();
+        renderGrid();
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  function visibleProducts() {
+    var q = searchTerm.toLowerCase();
+    return products.filter(function (p) {
+      var okCat = activeCat === 'todos' || p.category === activeCat;
+      var okQ = !q ||
+        (p.name || '').toLowerCase().indexOf(q) !== -1 ||
+        (p.description || '').toLowerCase().indexOf(q) !== -1;
+      return okCat && okQ;
+    });
+  }
+
+  function renderGrid() {
+    var grid = $('product-grid');
+    var list = visibleProducts();
+    $('grid-empty').hidden = list.length > 0;
+    $('product-count').textContent =
+      list.length + ' de ' + products.length + ' piezas';
+
+    grid.innerHTML = '';
+    list.forEach(function (p) {
+      var card = document.createElement('article');
+      card.className = 'p-card' +
+        (p.active === false ? ' inactive' : '') +
+        (dirty[p.id] ? ' dirty' : '');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', 'Editar ' + (p.name || 'producto'));
+
+      var badge = '';
+      if (dirty[p.id]) badge = '<span class="p-card-dirty-dot">Sin guardar</span>';
+      else if (p.active === false) badge = '<span class="p-card-off">Oculto</span>';
+
+      card.innerHTML =
+        '<div class="p-card-img"><img src="' + esc(p.photo) + '" alt="" loading="lazy"' +
+        ' onerror="this.style.visibility=\'hidden\'" /></div>' +
+        (p.tag ? '<span class="p-card-tag">' + esc(p.tag) + '</span>' : '') +
+        badge +
+        '<div class="p-card-body">' +
+        '  <p class="p-card-cat">' + esc(p.category) + '</p>' +
+        '  <h3 class="p-card-name">' + esc(p.name) + '</h3>' +
+        '  <div class="p-card-meta">' +
+        '    <span>' + esc(p.material || '') + '</span>' +
+        '    <span class="p-card-price">S/. ' + esc(p.price != null ? p.price : '') + '</span>' +
+        '  </div>' +
+        '</div>';
+
+      function open() { openDrawer(p.id); }
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  function updateSaveAll() {
+    var n = dirtyCount();
+    $('save-all-btn').hidden = n === 0;
+    $('save-all-badge').textContent = n;
+  }
+
+  /* ══════════════════════════════════════════
+     DRAWER (editor de producto)
+  ══════════════════════════════════════════ */
+  function findProduct(id) {
+    for (var i = 0; i < products.length; i++) {
+      if (products[i].id === id) return products[i];
+    }
+    return null;
+  }
+
+  function openDrawer(id) {
+    var p = findProduct(id);
+    if (!p) return;
+    currentId = id;
+
+    $('drawer-title').textContent = p._isNew ? 'Nuevo producto' : 'Editar producto';
+    $('edit-name').value = p.name || '';
+    $('edit-category').value = p.category || 'anillo';
+    $('edit-tag').value = p.tag || '';
+    $('edit-material').value = p.material || '';
+    $('edit-price').value = p.price != null ? p.price : '';
+    $('edit-description').value = p.description || '';
+    $('edit-photo').value = p.photo || '';
+    $('edit-photo-preview').src = p.photo || '';
+    $('edit-active').checked = p.active !== false;
+    $('photo-picker').hidden = true;
+
+    $('drawer-overlay').hidden = false;
+    $('drawer').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('edit-name').focus();
+  }
+
+  function closeDrawer() {
+    currentId = null;
+    $('drawer-overlay').hidden = true;
+    $('drawer').hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  /* aplica el valor de un input al producto abierto y marca dirty */
+  function applyField(key, value) {
+    var p = findProduct(currentId);
+    if (!p) return;
+    p[key] = value;
+    dirty[p.id] = true;
+    renderGrid();
+    updateSaveAll();
+  }
+
+  function initDrawer() {
+    $('drawer-close').addEventListener('click', closeDrawer);
+    $('drawer-overlay').addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && currentId) closeDrawer();
+    });
+
+    $('edit-name').addEventListener('input', function () { applyField('name', this.value); });
+    $('edit-category').addEventListener('change', function () { applyField('category', this.value); });
+    $('edit-tag').addEventListener('change', function () { applyField('tag', this.value); });
+    $('edit-material').addEventListener('input', function () { applyField('material', this.value); });
+    $('edit-price').addEventListener('input', function () {
+      applyField('price', this.value === '' ? null : parseFloat(this.value));
+    });
+    $('edit-description').addEventListener('input', function () { applyField('description', this.value); });
+    $('edit-active').addEventListener('change', function () { applyField('active', this.checked); });
+    $('edit-photo').addEventListener('input', function () {
+      $('edit-photo-preview').src = this.value;
+      applyField('photo', this.value);
+    });
+
+    /* selector de fotos existentes */
+    $('photo-picker-btn').addEventListener('click', function () {
+      var picker = $('photo-picker');
+      if (picker.hidden) buildPhotoPicker();
+      picker.hidden = !picker.hidden;
+    });
+
+    $('save-btn').addEventListener('click', function () {
+      if (currentId) saveProducts([currentId]);
+    });
+
+    $('delete-btn').addEventListener('click', function () {
+      var p = findProduct(currentId);
+      if (!p) return;
+      if (!confirm('¿Eliminar "' + p.name + '" definitivamente?\n(Si solo quieres ocultarlo del catálogo, usa el switch de visibilidad.)')) return;
+      deleteProduct(p.id);
+    });
+  }
+
+  function buildPhotoPicker() {
+    var grid = $('photo-picker-grid');
+    if (grid.childNodes.length) return; /* ya construido */
+    var current = $('edit-photo').value;
+    for (var i = 1; i <= TOTAL_FOTOS; i++) {
+      (function (n) {
+        var src = 'assets/img/foto-' + n + '.jpeg';
+        var img = document.createElement('img');
+        img.src = src;
+        img.loading = 'lazy';
+        img.alt = 'foto-' + n;
+        if (src === current) img.className = 'selected';
+        img.addEventListener('click', function () {
+          $('edit-photo').value = src;
+          $('edit-photo-preview').src = src;
+          applyField('photo', src);
+          var sel = grid.querySelector('.selected');
+          if (sel) sel.classList.remove('selected');
+          img.classList.add('selected');
+        });
+        grid.appendChild(img);
+      })(i);
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     GUARDADO / BORRADO
+  ══════════════════════════════════════════ */
+  function rowFor(p) {
+    return {
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      description: p.description || '',
+      material: p.material || '',
+      price: p.price == null ? 0 : p.price,
+      photo: p.photo || '',
+      tag: p.tag || '',
+      active: p.active !== false,
+      sort_order: p.sort_order || 0
+    };
+  }
+
+  function clearDirty(ids) {
+    ids.forEach(function (id) {
+      delete dirty[id];
+      var p = findProduct(id);
+      if (p) delete p._isNew;
+    });
+    renderGrid();
+    updateSaveAll();
+  }
+
+  function saveProducts(ids) {
+    var rows = ids.map(findProduct).filter(Boolean);
+    if (!rows.length) return;
+
+    /* validación mínima */
+    for (var i = 0; i < rows.length; i++) {
+      if (!String(rows[i].name || '').trim()) {
+        toast('El nombre no puede estar vacío.', 'error');
+        openDrawer(rows[i].id);
+        return;
+      }
+    }
+
+    if (demoMode) {
+      clearDirty(ids);
+      toast('Cambios aplicados (modo demo — no se guardan en BD)', 'ok');
+      return;
+    }
+
+    var btn = $('save-btn');
+    btn.disabled = true;
+    db.from('products').upsert(rows.map(rowFor)).then(function (res) {
+      btn.disabled = false;
+      if (res.error) {
+        toast('Error al guardar: ' + res.error.message, 'error');
+        return;
+      }
+      clearDirty(ids);
+      toast(ids.length === 1 ? 'Producto guardado ✓' : ids.length + ' productos guardados ✓', 'ok');
+    });
+  }
+
+  function deleteProduct(id) {
+    function done() {
+      products = products.filter(function (p) { return p.id !== id; });
+      delete dirty[id];
+      closeDrawer();
+      renderGrid();
+      updateSaveAll();
+      toast('Producto eliminado', 'ok');
+    }
+    var p = findProduct(id);
+    if (demoMode || (p && p._isNew)) { done(); return; }
+    db.from('products').delete().eq('id', id).then(function (res) {
+      if (res.error) {
+        toast('Error al eliminar: ' + res.error.message, 'error');
+        return;
+      }
+      done();
+    });
+  }
+
+  /* ══════════════════════════════════════════
+     TOOLBAR / TOPBAR
+  ══════════════════════════════════════════ */
+  function initToolbar() {
+    $('search-input').addEventListener('input', function () {
+      searchTerm = this.value.trim();
+      renderGrid();
+    });
+
+    $('new-product-btn').addEventListener('click', function () {
+      var maxSort = products.reduce(function (m, p) {
+        return Math.max(m, p.sort_order || 0);
+      }, 0);
+      var p = {
+        id: 'p' + Date.now().toString(36),
+        name: '',
+        category: activeCat !== 'todos' ? activeCat : 'anillo',
+        description: '',
+        material: 'Plata 925',
+        price: 50,
+        photo: '',
+        tag: '',
+        active: true,
+        sort_order: maxSort + 1,
+        _isNew: true
+      };
+      products.push(p);
+      dirty[p.id] = true;
+      renderGrid();
+      updateSaveAll();
+      openDrawer(p.id);
+    });
+
+    $('save-all-btn').addEventListener('click', function () {
+      saveProducts(Object.keys(dirty));
+    });
+
+    $('logout-btn').addEventListener('click', logout);
+    $('import-btn').addEventListener('click', importCatalog);
+
+    window.addEventListener('beforeunload', function (ev) {
+      if (dirtyCount() > 0 && !demoMode) {
+        ev.preventDefault();
+        ev.returnValue = '';
+      }
+    });
+  }
+
+  /* ── init ────────────────────────────────── */
+  initLogin();
+  initDrawer();
+  initToolbar();
+})();

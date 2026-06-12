@@ -1245,6 +1245,17 @@ section, footer { scroll-margin-top: var(--nav-h); }
   transition: background var(--t);
 }
 .nav-cart-btn:hover { background: var(--bg-alt); }
+.nav-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: background var(--t), color var(--t);
+}
+.nav-login-btn:hover { background: var(--bg-alt); color: var(--accent-dark); }
 .nav-cart-badge {
   display: none;
   position: absolute;

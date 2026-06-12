@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Admin — la Mona</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="assets/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════
+       VISTA LOGIN
+  ══════════════════════════════════════════════════ -->
+  <div class="login-view" id="login-view">
+    <div class="login-card">
+      <a href="index.html" class="login-back" aria-label="Volver al sitio">← Volver al sitio</a>
+      <img src="assets/img/logo.png" alt="la Mona" class="login-logo" width="88" height="88" />
+      <h1 class="login-title">Panel de administración</h1>
+      <p class="login-sub">Acceso exclusivo para el equipo de la Mona</p>
+
+      <form id="login-form" novalidate>
+        <label class="field">
+          <span class="field-label">Correo electrónico</span>
+          <input type="email" id="login-email" autocomplete="email" placeholder="tu@correo.com" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Contraseña</span>
+          <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" required />
+        </label>
+        <p class="login-error" id="login-error" role="alert" hidden></p>
+        <button type="submit" class="btn-primary btn-block" id="login-submit">Ingresar</button>
+      </form>
+
+      <!-- Aviso de modo demo (solo si Supabase no está configurado) -->
+      <div class="login-demo" id="login-demo" hidden>
+        <p>Supabase aún no está configurado, así que no hay base de datos conectada.
+           Puedes explorar el panel en modo demo — los cambios no se guardan.</p>
+        <button type="button" class="btn-ghost btn-block" id="demo-btn">Entrar en modo demo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       VISTA ADMIN
+  ══════════════════════════════════════════════════ -->
+  <div class="admin-view" id="admin-view" hidden>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img src="assets/img/logo.png" alt="" width="42" height="42" />
+        <div>
+          <strong>la Mona</strong>
+          <span>Panel de productos</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn-save-all" id="save-all-btn" hidden>
+          Guardar cambios <span class="save-all-badge" id="save-all-badge">0</span>
+        </button>
+        <span class="topbar-user" id="topbar-user"></span>
+        <a href="index.html" class="btn-ghost btn-sm">Ver sitio</a>
+        <button type="button" class="btn-ghost btn-sm" id="logout-btn">Salir</button>
+      </div>
+    </header>
+
+    <!-- Banner modo demo -->
+    <div class="demo-banner" id="demo-banner" hidden>
+      Modo demo — los cambios <strong>no se guardan</strong>. Configura Supabase siguiendo
+      <code>supabase/README-SUPABASE.md</code> para activar el guardado real.
+    </div>
+
+    <!-- Banner importar catálogo (tabla vacía) -->
+    <div class="import-banner" id="import-banner" hidden>
+      <span>La base de datos está vacía. Puedes importar el catálogo actual del sitio.</span>
+      <button type="button" class="btn-primary btn-sm" id="import-btn">Importar catálogo inicial (69 piezas)</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Buscar por nombre o descripción…" />
+      </div>
+      <div class="toolbar-filters" id="cat-filters" role="tablist"></div>
+      <div class="toolbar-right">
+        <span class="product-count" id="product-count"></span>
+        <button type="button" class="btn-primary" id="new-product-btn">＋ Nuevo producto</button>
+      </div>
+    </div>
+
+    <!-- Grid de productos -->
+    <main class="grid" id="product-grid" aria-live="polite"></main>
+    <p class="grid-empty" id="grid-empty" hidden>No se encontraron productos con ese filtro.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       EDITOR (drawer lateral)
+  ══════════════════════════════════════════════════ -->
+  <div class="drawer-overlay" id="drawer-overlay" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="Editor de producto" hidden>
+    <header class="drawer-head">
+      <h2 id="drawer-title">Editar producto</h2>
+      <button type="button" class="drawer-close" id="drawer-close" aria-label="Cerrar">✕</button>
+    </header>
+
+    <div class="drawer-body">
+      <!-- Foto -->
+      <div class="drawer-photo">
+        <img id="edit-photo-preview" src="" alt="Foto del producto" />
+        <button type="button" class="btn-ghost btn-sm" id="photo-picker-btn">Elegir otra foto</button>
+      </div>
+      <label class="field">
+        <span class="field-label">Ruta o URL de la foto</span>
+        <input type="text" id="edit-photo" placeholder="assets/img/foto-1.jpeg" />
+      </label>
+
+      <!-- Selector de fotos existentes -->
+      <div class="photo-picker" id="photo-picker" hidden>
+        <p class="field-label">Fotos disponibles en el sitio</p>
+        <div class="photo-picker-grid" id="photo-picker-grid"></div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Nombre *</span>
+        <input type="text" id="edit-name" maxlength="80" placeholder="Nombre de la pieza" />
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">Categoría</span>
+          <select id="edit-category">
+            <option value="anillo">Anillo</option>
+            <option value="collar">Collar</option>
+            <option value="pulsera">Pulsera</option>
+            <option value="arete">Arete</option>
+            <option value="conjunto">Conjunto</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Etiqueta</span>
+          <select id="edit-tag">
+            <option value="">— Sin etiqueta —</option>
+            <option value="Personalizable">Personalizable</option>
+            <option value="Set">Set</option>
+            <option value="Nuevo">Nuevo</option>
+            <option value="Baño de oro">Baño de oro</option>
+            <option value="Exclusivo">Exclusivo</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">Material</span>
+          <input type="text" id="edit-material" maxlength="60" placeholder="Plata 925" list="material-options" />
+          <datalist id="material-options">
+            <option value="Plata 925"></option>
+            <option value="Baño de oro 18k"></option>
+            <option value="Plata 925 / Baño de oro 18k"></option>
+            <option value="Acero quirúrgico"></option>
+          </datalist>
+        </label>
+        <label class="field">
+          <span class="field-label">Costo (S/.)</span>
+          <input type="number" id="edit-price" min="0" step="0.5" placeholder="50" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Descripción</span>
+        <textarea id="edit-description" rows="4" maxlength="300" placeholder="Descripción que verá el cliente…"></textarea>
+      </label>
+
+      <label class="switch-field">
+        <input type="checkbox" id="edit-active" />
+        <span class="switch"></span>
+        <span>Producto visible en el catálogo</span>
+      </label>
+    </div>
+
+    <footer class="drawer-foot">
+      <button type="button" class="btn-danger" id="delete-btn">Eliminar</button>
+      <button type="button" class="btn-primary" id="save-btn">Guardar producto</button>
+    </footer>
+  </aside>
+
+  <!-- Toast de notificaciones -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="lib/supabase.min.js"></script>
+  <script src="lib/supabase-config.js"></script>
+  <script src="lib/manifest.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
