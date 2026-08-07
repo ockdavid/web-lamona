@@ -61,8 +61,9 @@
         btn.classList.add('active');
         btn.setAttribute('aria-selected', 'true');
 
-        /* show / hide cards */
-        cards.forEach(function (card) {
+        /* show / hide cards — se consulta el DOM aquí y no al arrancar,
+           porque catalog-sync puede añadir o retirar tarjetas después */
+        document.querySelectorAll('[data-cat]').forEach(function (card) {
           var cat = card.getAttribute('data-cat');
           var show = filter === 'todos' || cat === filter;
           card.classList.toggle('hidden', !show);
@@ -385,8 +386,13 @@
   /* ── cart ────────────────────────────────── */
   function initCart() {
     var WA   = '51997918216';
-    var PRICE = 50;
+    var PRICE = 50;          /* respaldo si una tarjeta no trae data-price */
     var cart  = [];
+
+    function money(v) {
+      var n = Number(v) || 0;
+      return 'S/. ' + (n % 1 === 0 ? String(n) : n.toFixed(2));
+    }
 
     var overlay    = document.getElementById('cart-overlay');
     var cartBody   = document.getElementById('cart-body');
@@ -401,41 +407,49 @@
 
     if (!overlay) return;
 
-    /* replace "Pedir" links with "Agregar" buttons */
-    document.querySelectorAll('.product-card').forEach(function (card) {
-      var pedirLink = card.querySelector('.card-footer .btn-wa.btn-sm');
-      if (!pedirLink) return;
+    /* replace "Pedir" links with "Agregar" buttons.
+       Los datos se leen en el clic y no al enganchar, porque
+       catalog-sync puede haber cambiado nombre, foto o precio. */
+    function wireCards() {
+      document.querySelectorAll('.product-card').forEach(function (card) {
+        var pedirLink = card.querySelector('.card-footer .btn-wa.btn-sm');
+        if (!pedirLink) return;   /* ya tiene botón: no re-enganchar */
 
-      var name  = (card.querySelector('.card-name')  || {}).textContent || '';
-      var cat   = card.getAttribute('data-cat') || '';
-      var img   = card.querySelector('.card-img-wrap img');
-      var photo = img ? img.getAttribute('src') : '';
+        var btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'btn btn-add-cart';
+        btn.textContent = '+ Agregar';
 
-      var btn = document.createElement('button');
-      btn.type      = 'button';
-      btn.className = 'btn btn-add-cart';
-      btn.textContent = '+ Agregar';
+        btn.addEventListener('click', function () {
+          var name  = ((card.querySelector('.card-name') || {}).textContent || '').trim();
+          var cat   = card.getAttribute('data-cat') || '';
+          var img   = card.querySelector('.card-img-wrap img');
+          var photo = img ? img.getAttribute('src') : '';
+          var price = parseFloat(card.getAttribute('data-price'));
+          if (!isFinite(price)) price = PRICE;
 
-      btn.addEventListener('click', function () {
-        addToCart(name.trim(), cat, photo);
-        btn.textContent = '✓ Añadido';
-        btn.classList.add('added');
-        setTimeout(function () {
-          btn.textContent = '+ Agregar';
-          btn.classList.remove('added');
-        }, 1400);
+          addToCart(name, cat, photo, price);
+          btn.textContent = '✓ Añadido';
+          btn.classList.add('added');
+          setTimeout(function () {
+            btn.textContent = '+ Agregar';
+            btn.classList.remove('added');
+          }, 1400);
+        });
+
+        pedirLink.parentNode.replaceChild(btn, pedirLink);
       });
+    }
+    wireCards();
+    document.addEventListener('catalog:updated', wireCards);
 
-      pedirLink.parentNode.replaceChild(btn, pedirLink);
-    });
-
-    function addToCart(name, cat, photo) {
+    function addToCart(name, cat, photo, price) {
       var found = null;
       for (var i = 0; i < cart.length; i++) {
         if (cart[i].name === name) { found = cart[i]; break; }
       }
-      if (found) { found.qty++; }
-      else { cart.push({ name: name, cat: cat, photo: photo, qty: 1 }); }
+      if (found) { found.qty++; found.price = price; }
+      else { cart.push({ name: name, cat: cat, photo: photo, price: price, qty: 1 }); }
       updateBadge();
     }
 
@@ -468,7 +482,9 @@
     function renderCart() {
       if (!cartBody) return;
       var totalQty = cart.reduce(function (s, i) { return s + i.qty; }, 0);
-      var totalVal = cart.reduce(function (s, i) { return s + i.qty * PRICE; }, 0);
+      var totalVal = cart.reduce(function (s, i) {
+        return s + i.qty * (isFinite(i.price) ? i.price : PRICE);
+      }, 0);
 
       /* count badge in title */
       if (countBadge) {
@@ -499,7 +515,7 @@
             '<div class="cart-item-info">' +
               '<span class="cart-item-cat">' + item.cat + '</span>' +
               '<span class="cart-item-name">' + item.name + '</span>' +
-              '<span class="cart-item-price">S/. ' + (item.qty * PRICE) + '</span>' +
+              '<span class="cart-item-price">' + money(item.qty * (isFinite(item.price) ? item.price : PRICE)) + '</span>' +
             '</div>' +
             '<div class="cart-item-actions">' +
               '<div class="cart-qty">' +
@@ -524,15 +540,16 @@
       });
 
       if (cartFooter) cartFooter.hidden = false;
-      if (totalAmt)   totalAmt.textContent = 'S/. ' + totalVal;
+      if (totalAmt)   totalAmt.textContent = money(totalVal);
 
       if (solicitar) {
         var lines = cart.map(function (i) {
-          return '• ' + i.name + ' x' + i.qty + ' — S/. ' + (i.qty * PRICE);
+          return '• ' + i.name + ' x' + i.qty + ' — ' +
+                 money(i.qty * (isFinite(i.price) ? i.price : PRICE));
         });
         var msg = 'Hola! Me gustaría solicitar las siguientes piezas de La Mona ✨\n\n' +
                   lines.join('\n') +
-                  '\n\nTotal: S/. ' + totalVal + '\n\n¿Están disponibles? 🌸';
+                  '\n\nTotal: ' + money(totalVal) + '\n\n¿Están disponibles? 🌸';
         solicitar.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent(msg);
       }
     }
@@ -643,6 +660,85 @@
         qr: ['Ver materiales', 'Precios', 'Personalización', 'Envíos', 'Ver catálogo', 'Hablar por WhatsApp']
       }
     };
+
+    /* ── Respuestas con cifras: se calculan del catálogo real ──
+       Los conteos y los precios ya no van escritos a mano; se leen de
+       las tarjetas, así que siguen a lo que se edite en el panel. */
+    function catalogStats() {
+      var cards = document.querySelectorAll('.product-card[data-cat]');
+      var porCat = {}, precios = [];
+
+      cards.forEach(function (c) {
+        var cat = c.getAttribute('data-cat') || '';
+        porCat[cat] = (porCat[cat] || 0) + 1;
+        var p = parseFloat(c.getAttribute('data-price'));
+        if (isFinite(p)) precios.push(p);
+      });
+
+      precios.sort(function (a, b) { return a - b; });
+      var min = precios[0], max = precios[precios.length - 1];
+
+      function money(v) {
+        var n = Number(v) || 0;
+        return 'S/. ' + (n % 1 === 0 ? String(n) : n.toFixed(2));
+      }
+
+      return {
+        total: cards.length,
+        cat: porCat,
+        uniforme: precios.length > 0 && min === max,
+        min: min, max: max,
+        precio: money(min),
+        /* "a S/. 50" o "desde S/. 40" según haya uno o varios precios */
+        frase: (precios.length && min === max)
+          ? 'a <strong>' + money(min) + '</strong>'
+          : 'desde <strong>' + money(min) + '</strong>'
+      };
+    }
+
+    function refreshKB() {
+      var s = catalogStats();
+      if (!s.total) return;   /* sin tarjetas: se dejan los textos originales */
+
+      KB.price.text = s.uniforme
+        ? 'Todas nuestras piezas tienen un solo precio: <strong>' + s.precio + '</strong> 🌸<br><br>' +
+          'No importa si es un collar, anillo, pulsera o arete — el precio es el mismo para todos ' +
+          'los diseños. ¡Y la personalización con tu nombre o iniciales está incluida!'
+        : 'Nuestros precios van <strong>desde ' + s.precio + '</strong> 🌸<br><br>' +
+          'Cada diseño tiene su precio, y lo puedes ver en la tarjeta de cada pieza dentro del ' +
+          'catálogo. ¡La personalización con tu nombre o iniciales está incluida!';
+
+      KB.catalog.text =
+        'Tenemos <strong>' + s.total + ' piezas</strong> en cuatro categorías:<br><br>' +
+        '📿 <strong>Collares</strong> — ' + (s.cat.collar   || 0) + ' diseños<br>' +
+        '💍 <strong>Anillos</strong> — '  + (s.cat.anillo   || 0) + ' diseños<br>' +
+        '🔗 <strong>Pulseras</strong> — ' + (s.cat.pulsera  || 0) + ' diseños<br>' +
+        '📎 <strong>Aretes</strong> — '   + (s.cat.arete    || 0) + ' diseños<br><br>' +
+        'Todas ' + s.frase + ' con opción de grabado personalizado.';
+
+      KB.collares.text =
+        '📿 Tenemos <strong>' + (s.cat.collar || 0) + ' diseños de collares</strong> disponibles — ' +
+        'desde dijes delicados hasta cadenas más estructuradas, en plata 925 o baño de oro 18k ' +
+        s.frase + '.<br><br>Todos pueden personalizarse con tu nombre o iniciales.';
+
+      KB.anillos.text =
+        '💍 Contamos con <strong>' + (s.cat.anillo || 0) + ' diseños de anillos</strong>, perfectos ' +
+        'para regalo o uso diario. En plata 925 o baño de oro 18k ' + s.frase + '.<br><br>' +
+        '¡Se pueden personalizar con tus iniciales!';
+
+      KB.pulseras.text =
+        '🔗 Tenemos <strong>' + (s.cat.pulsera || 0) + ' diseños de pulseras</strong>, ideales para ' +
+        'regalar. Todas en plata 925 o baño de oro 18k ' + s.frase + '.<br><br>' +
+        'Son perfectas para grabar el nombre de alguien especial.';
+
+      KB.aretes.text =
+        '📎 Tenemos <strong>' + (s.cat.arete || 0) + ' diseños de aretes</strong>, elegantes y ' +
+        'delicados. En plata 925 o baño de oro 18k ' + s.frase + ' el par.<br><br>' +
+        'También se pueden personalizar con iniciales.';
+    }
+
+    refreshKB();
+    document.addEventListener('catalog:updated', refreshKB);
 
     /* ── Quick reply → intent map ───────────── */
     var QR = {
