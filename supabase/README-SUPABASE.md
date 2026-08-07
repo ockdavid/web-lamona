@@ -34,8 +34,32 @@ correos en `schema.sql` (reejecutando el archivo).
 3. Pégalos en `lib/supabase-config.js` (campos `url` y `anonKey`).
 4. Actualiza también `allowedEmails` con los correos reales.
 
-Al desplegar en Hostinger hay que subir `lib/supabase-config.js` a mano:
-al no estar en el repo, no viaja con un `git pull` ni con un deploy automático.
+En **producción no se sube el archivo**: Cloudflare Pages lo genera en cada
+despliegue con `build-config.js` a partir de variables de entorno.
+
+Pages → tu proyecto → **Settings → Builds & deployments**:
+- **Build command:** `node build-config.js`
+- **Output directory:** `/`
+
+Pages → **Settings → Environment variables** (entorno *Production*):
+
+| Variable | Valor |
+|---|---|
+| `SUPABASE_URL` | Project URL de Supabase |
+| `SUPABASE_ANON_KEY` | publishable key |
+| `ADMIN_EMAILS` | los correos separados por comas |
+
+Si falta alguna variable el despliegue falla a propósito, en vez de publicar
+un panel en modo demo sin avisar. Cloudflare mantiene vivo el deploy anterior.
+
+## URLs de autenticación
+
+Authentication → **URL Configuration**:
+- **Site URL:** `https://lamona.pages.dev/admin.html`
+  Tiene que apuntar a `admin.html`, no a la raíz: ahí es donde vive la pantalla
+  que recibe los enlaces de invitación y de recuperación.
+- **Redirect URLs:** añade `https://lamona.pages.dev/admin.html`
+  y `http://localhost:3000/admin.html` (para probar en local).
 
 ## 5. Importar el catálogo inicial
 1. Abre `admin.html` **servido por HTTP** (Hostinger o un servidor local — con
