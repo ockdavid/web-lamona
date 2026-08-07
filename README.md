@@ -265,7 +265,7 @@ El sitio está conectado al repositorio de GitHub [`ockdavid/web-lamona`](https:
 
 Implementado (Fases 2 y 3 del roadmap). Accesible desde el **ícono de usuario** en la esquina superior derecha del sitio.
 
-- **Login restringido**: solo 3 correos autorizados pueden entrar (Supabase Auth + políticas RLS). La lista se define en `lib/supabase-config.js` y en `supabase/schema.sql`.
+- **Login restringido**: solo los correos autorizados pueden entrar (Supabase Auth + políticas RLS). La lista se define en `lib/supabase-config.js` y en `supabase/schema.sql`.
 - **Dashboard de productos**: grid visual con las fotos de las 69 piezas, búsqueda por texto y filtros por categoría.
 - **Editor por producto** (drawer lateral): nombre, categoría, etiqueta, material, costo (S/.), descripción, foto (con selector visual de las 78 fotos del sitio) y switch de visibilidad.
 - **Guardado en base de datos**: botón "Guardar producto" por pieza, o "Guardar cambios" global que sube todas las piezas editadas a Supabase de una vez.

@@ -41,25 +41,24 @@ create policy "lectura publica"
   on public.products for select
   using (true);
 
--- Escritura SOLO para los 3 correos autorizados.
+-- Escritura SOLO para los correos autorizados.
 -- ⚠️ IMPORTANTE: estos correos deben coincidir con
 --    lib/supabase-config.js y con los usuarios creados
 --    en Authentication → Users.
+--    Para sumar a alguien: añádelo a la lista de AMBOS
+--    bloques de abajo, vuelve a ejecutar este archivo y
+--    agrégalo también en lib/supabase-config.js.
 drop policy if exists "escritura admins" on public.products;
 create policy "escritura admins"
   on public.products for all
   to authenticated
   using (
     (auth.jwt() ->> 'email') in (
-      'davidwp37@gmail.com',
-      'correo2@cambiar.com',
-      'correo3@cambiar.com'
+      'davidwp37@gmail.com'
     )
   )
   with check (
     (auth.jwt() ->> 'email') in (
-      'davidwp37@gmail.com',
-      'correo2@cambiar.com',
-      'correo3@cambiar.com'
+      'davidwp37@gmail.com'
     )
   );
