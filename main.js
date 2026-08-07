@@ -37,10 +37,32 @@
   }
 
   /* ── filter tabs ─────────────────────────── */
+
+  /* Los contadores de las pestañas venían escritos a mano en el HTML y
+     no cuadraban con el catálogo: sumaban 77 cuando había 69 tarjetas.
+     Se calculan del DOM, y se recalculan cuando el sync añade o retira. */
+  function refreshFilterCounts() {
+    var cards = document.querySelectorAll('.product-card[data-cat]');
+    var porCat = {};
+    cards.forEach(function (c) {
+      var k = c.getAttribute('data-cat');
+      porCat[k] = (porCat[k] || 0) + 1;
+    });
+    document.querySelectorAll('[data-filter]').forEach(function (btn) {
+      var span = btn.querySelector('.filter-count');
+      if (!span) return;
+      var f = btn.getAttribute('data-filter');
+      span.textContent = (f === 'todos') ? cards.length : (porCat[f] || 0);
+    });
+  }
+
   function initFilter() {
     var btns  = document.querySelectorAll('[data-filter]');
     var cards = document.querySelectorAll('[data-cat]');
     if (!btns.length || !cards.length) return;
+
+    refreshFilterCounts();
+    document.addEventListener('catalog:updated', refreshFilterCounts);
 
     btns.forEach(function (btn) {
       btn.addEventListener('click', function () {
