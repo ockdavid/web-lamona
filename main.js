@@ -54,6 +54,10 @@
       var f = btn.getAttribute('data-filter');
       span.textContent = (f === 'todos') ? cards.length : (porCat[f] || 0);
     });
+
+    /* el aviso de la barra inferior también llevaba el número a mano */
+    var hint = document.querySelector('.catalog-hint-count');
+    if (hint) hint.textContent = cards.length + ' piezas';
   }
 
   function initFilter() {
