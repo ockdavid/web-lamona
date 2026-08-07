@@ -421,9 +421,31 @@
 
   function logout() {
     if (dirtyCount() > 0 && !confirm('Tienes cambios sin guardar. ¿Salir igual?')) return;
+
+    /* ya se avisó de los cambios: que beforeunload no vuelva a preguntar */
+    dirty = {};
     sessionStorage.removeItem('lamona_demo');
-    if (db) db.auth.signOut();
-    window.location.reload();
+
+    if (!db) { window.location.reload(); return; }
+
+    var btn = $('logout-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saliendo…';
+
+    /* signOut() es asíncrono: borra la sesión de localStorage cuando
+       resuelve. Recargar sin esperarla dejaba la sesión viva y el
+       usuario volvía a entrar solo. */
+    function done() { window.location.reload(); }
+
+    db.auth.signOut()
+      .then(function (res) {
+        /* si el servidor no respondió, al menos limpiamos este equipo */
+        if (res && res.error) return db.auth.signOut({ scope: 'local' });
+      })
+      .catch(function () {
+        return db.auth.signOut({ scope: 'local' }).catch(function () {});
+      })
+      .then(done, done);
   }
 
   /* ══════════════════════════════════════════
