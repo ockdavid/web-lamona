@@ -23,6 +23,12 @@
   var searchTerm = '';
   var TOTAL_FOTOS = 78;     /* assets/img/foto-1.jpeg … foto-78.jpeg */
 
+  /* ── subida de fotos ──────────────────────── */
+  var BUCKET       = 'productos';       /* bucket de Supabase Storage */
+  var MAX_LADO     = 1400;              /* px del lado largo tras redimensionar */
+  var CALIDAD      = 0.82;              /* calidad JPEG */
+  var MAX_ORIGINAL = 15 * 1024 * 1024;  /* rechaza archivos absurdos */
+
   if (isConfigured && window.supabase) {
     db = window.supabase.createClient(CFG.url, CFG.anonKey);
   }
@@ -607,6 +613,7 @@
     $('edit-photo-preview').src = p.photo || '';
     $('edit-active').checked = p.active !== false;
     $('photo-picker').hidden = true;
+    photoStatus('');   /* el aviso del producto anterior no se queda pegado */
 
     $('drawer-overlay').hidden = false;
     $('drawer').hidden = false;
@@ -659,6 +666,17 @@
       picker.hidden = !picker.hidden;
     });
 
+    /* subir una foto nueva desde la galería o el disco */
+    $('photo-upload-btn').addEventListener('click', function () {
+      if (demoMode) { photoStatus('En modo demo no se pueden subir fotos.', 'err'); return; }
+      $('photo-file').click();
+    });
+    $('photo-file').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      this.value = '';   /* permite volver a elegir el mismo archivo */
+      if (file) subirFoto(file);
+    });
+
     $('save-btn').addEventListener('click', function () {
       if (currentId) saveProducts([currentId]);
     });
@@ -669,6 +687,98 @@
       if (!confirm('¿Eliminar "' + p.name + '" definitivamente?\n(Si solo quieres ocultarlo del catálogo, usa el switch de visibilidad.)')) return;
       deleteProduct(p.id);
     });
+  }
+
+  /* ══════════════════════════════════════════
+     SUBIR FOTO (galería del móvil o disco)
+  ══════════════════════════════════════════ */
+  function photoStatus(msg, tipo) {
+    var el = $('photo-status');
+    if (!msg) { el.hidden = true; return; }
+    el.textContent = msg;
+    el.className = 'photo-status' + (tipo ? ' ' + tipo : '');
+    el.hidden = false;
+  }
+
+  /* Redimensiona en el navegador antes de subir: una foto de celular
+     pesa 3–5 MB, y subirla tal cual llena el plan gratuito y hace la
+     web lenta. createImageBitmap respeta la orientación EXIF, así que
+     las fotos verticales no acaban tumbadas. */
+  function comprimirImagen(file) {
+    var carga = (typeof createImageBitmap === 'function')
+      ? createImageBitmap(file, { imageOrientation: 'from-image' })
+      : new Promise(function (resolve, reject) {
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload  = function () { URL.revokeObjectURL(url); resolve(img); };
+          img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('no se pudo leer la imagen')); };
+          img.src = url;
+        });
+
+    return carga.then(function (src) {
+      var w = src.width  || src.naturalWidth;
+      var h = src.height || src.naturalHeight;
+      if (!w || !h) throw new Error('no se pudo leer la imagen');
+
+      var escala = Math.min(1, MAX_LADO / Math.max(w, h));
+      var cw = Math.max(1, Math.round(w * escala));
+      var ch = Math.max(1, Math.round(h * escala));
+
+      var canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      canvas.getContext('2d').drawImage(src, 0, 0, cw, ch);
+      if (src.close) src.close();
+
+      return new Promise(function (resolve, reject) {
+        canvas.toBlob(function (blob) {
+          if (blob) resolve(blob);
+          else reject(new Error('no se pudo procesar la imagen'));
+        }, 'image/jpeg', CALIDAD);
+      });
+    });
+  }
+
+  function subirFoto(file) {
+    if (!db) return;
+    if (!/^image\//.test(file.type)) { photoStatus('Ese archivo no es una imagen.', 'err'); return; }
+    if (file.size > MAX_ORIGINAL)    { photoStatus('La imagen pesa más de 15 MB.', 'err'); return; }
+
+    var btn = $('photo-upload-btn');
+    btn.disabled = true;
+    photoStatus('Preparando la imagen…');
+
+    comprimirImagen(file)
+      .then(function (blob) {
+        photoStatus('Subiendo… (' + Math.round(blob.size / 1024) + ' KB)');
+        /* nombre único: nunca pisa una foto ya publicada */
+        var nombre = (currentId || 'foto') + '-' + Date.now() + '.jpg';
+        return db.storage.from(BUCKET)
+          .upload(nombre, blob, { contentType: 'image/jpeg', upsert: false })
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return db.storage.from(BUCKET).getPublicUrl(nombre);
+          });
+      })
+      .then(function (pub) {
+        var url = pub && pub.data && pub.data.publicUrl;
+        if (!url) throw new Error('Supabase no devolvió la URL pública');
+        $('edit-photo').value = url;
+        $('edit-photo-preview').src = url;
+        applyField('photo', url);
+        photoStatus('Foto lista ✓ — recuerda guardar los cambios.', 'ok');
+      })
+      .catch(function (err) {
+        var m = (err && err.message) || '';
+        if (/bucket.*not found|not found.*bucket/i.test(m)) {
+          photoStatus('Falta crear el almacén de fotos en Supabase (bucket "' + BUCKET + '").', 'err');
+        } else if (/policy|permission|unauthorized|row-level/i.test(m)) {
+          photoStatus('Tu cuenta no tiene permiso para subir fotos. Falta la política del bucket.', 'err');
+        } else {
+          photoStatus('No se pudo subir la foto. ' + m, 'err');
+        }
+      })
+      .then(function () { btn.disabled = false; });
   }
 
   function buildPhotoPicker() {

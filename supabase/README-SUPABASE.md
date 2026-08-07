@@ -52,6 +52,22 @@ Pages → **Settings → Environment variables** (entorno *Production*):
 Si falta alguna variable el despliegue falla a propósito, en vez de publicar
 un panel en modo demo sin avisar. Cloudflare mantiene vivo el deploy anterior.
 
+## Fotos subidas desde el panel
+
+Para que el botón **Subir foto** funcione hay que crear el almacén una vez:
+**SQL Editor → New query** → pega `supabase/storage.sql` → **Run**.
+
+Crea el bucket `productos` (público, tope de 5 MB, solo imágenes) y sus dos
+políticas: cualquiera puede **ver** las fotos, solo los correos autorizados
+pueden **subirlas**. Es idempotente: se puede reejecutar sin romper nada.
+
+El panel redimensiona la imagen a 1400 px de lado largo y la convierte a JPEG
+antes de subirla, así una foto de celular de 4 MB acaba pesando ~70 KB. Se
+respeta la orientación EXIF, así que las fotos verticales no salen tumbadas.
+
+Mientras el SQL no se ejecute, el panel avisa de que falta el almacén y el
+resto sigue funcionando con normalidad.
+
 ## URLs de autenticación
 
 Authentication → **URL Configuration**:

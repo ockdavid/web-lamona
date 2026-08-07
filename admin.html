@@ -171,7 +171,14 @@
       <!-- Foto -->
       <div class="drawer-photo">
         <img id="edit-photo-preview" src="" alt="Foto del producto" />
-        <button type="button" class="btn-ghost btn-sm" id="photo-picker-btn">Elegir otra foto</button>
+        <div class="drawer-photo-actions">
+          <button type="button" class="btn-primary btn-sm" id="photo-upload-btn">Subir foto</button>
+          <button type="button" class="btn-ghost btn-sm" id="photo-picker-btn">Elegir de las ya subidas</button>
+        </div>
+        <!-- Sin atributo "capture" y con los tipos escritos uno a uno en
+             vez de image/*: así el móvil abre la galería y no la cámara. -->
+        <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" hidden />
+        <p class="photo-status" id="photo-status" role="status" hidden></p>
       </div>
       <label class="field">
         <span class="field-label">Ruta o URL de la foto</span>

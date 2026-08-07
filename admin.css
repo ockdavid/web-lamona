@@ -488,6 +488,22 @@ input, select, textarea { font: inherit; color: var(--text); }
   box-shadow: var(--shadow);
 }
 
+.drawer-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.photo-status {
+  margin: 0;
+  font-size: 0.83rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text-muted);
+}
+.photo-status.ok  { color: var(--ok, #2f7d55); font-weight: 600; }
+.photo-status.err { color: var(--danger); }
+
 .photo-picker { margin: -4px 0 18px; }
 .photo-picker-grid {
   display: grid;
