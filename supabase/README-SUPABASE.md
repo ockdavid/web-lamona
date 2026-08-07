@@ -3,9 +3,10 @@
 El panel (`admin.html`) funciona en **modo demo** mientras no haya credenciales,
 y en **modo conectado** cuando las hay.
 
-**Estado actual:** proyecto `ponjilrwakjgwkzyrhdd` creado y credenciales ya pegadas
-en `lib/supabase-config.js`. Correo autorizado: `davidwp37@gmail.com`.
-Quedan por hacer los pasos 2, 3 y 5 dentro del dashboard de Supabase.
+> **Las credenciales no se versionan.** `lib/supabase-config.js` está en
+> `.gitignore`. En el repo solo vive la plantilla `lib/supabase-config.example.js`.
+> Tras clonar, copia la plantilla y rellénala — sin ese archivo el panel
+> arranca en modo demo.
 
 ## 1. Crear el proyecto ✅ hecho
 1. Regístrate en [supabase.com](https://supabase.com) (gratis).
@@ -26,10 +27,15 @@ Para autorizar a alguien más después: créale el usuario aquí, y añade su co
 tanto a `allowedEmails` en `lib/supabase-config.js` como a los dos bloques de
 correos en `schema.sql` (reejecutando el archivo).
 
-## 4. Conectar el sitio ✅ hecho
-1. **Settings → API**: copia **Project URL** y la **publishable key**.
-2. Pégalos en `lib/supabase-config.js` (campos `url` y `anonKey`).
-3. Actualiza también `allowedEmails` con los correos reales.
+## 4. Conectar el sitio
+1. Copia `lib/supabase-config.example.js` a `lib/supabase-config.js`
+   (ese nombre está en `.gitignore`, así que no se sube al repo).
+2. **Settings → API**: copia **Project URL** y la **publishable key**.
+3. Pégalos en `lib/supabase-config.js` (campos `url` y `anonKey`).
+4. Actualiza también `allowedEmails` con los correos reales.
+
+Al desplegar en Hostinger hay que subir `lib/supabase-config.js` a mano:
+al no estar en el repo, no viaja con un `git pull` ni con un deploy automático.
 
 ## 5. Importar el catálogo inicial
 1. Abre `admin.html` **servido por HTTP** (Hostinger o un servidor local — con

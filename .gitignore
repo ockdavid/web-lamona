@@ -1,0 +1,9 @@
+# Credenciales de Supabase — NO versionar.
+# Copia lib/supabase-config.example.js a lib/supabase-config.js
+# y rellena los valores de tu proyecto.
+lib/supabase-config.js
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.log
