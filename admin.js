@@ -27,6 +27,49 @@
     db = window.supabase.createClient(CFG.url, CFG.anonKey);
   }
 
+  /* ── enlace de invitación / recuperación ───
+     Supabase manda el token en el hash de la URL. Hay que leerlo
+     AQUÍ, de forma síncrona, porque supabase-js limpia el hash en
+     cuanto termina de inicializarse. */
+  var authLink = (function () {
+    function parse(str) {
+      var out = {};
+      String(str || '').replace(/^[#?]/, '').split('&').forEach(function (pair) {
+        if (!pair) return;
+        var i = pair.indexOf('=');
+        var k = i < 0 ? pair : pair.slice(0, i);
+        var v = i < 0 ? '' : pair.slice(i + 1);
+        try { out[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' ')); }
+        catch (e) { out[k] = v; }
+      });
+      return out;
+    }
+    var h = parse(window.location.hash);
+    var q = parse(window.location.search);
+    var type = h.type || q.type || '';
+    var err = h.error_description || q.error_description || h.error || q.error || '';
+    return {
+      type: type,
+      error: err,
+      active: type === 'invite' || type === 'recovery' ||
+              !!err || !!q.code || !!q.token_hash
+    };
+  })();
+
+  /* Quita el token de la barra de direcciones. Solo se llama DESPUÉS
+     de que supabase-js haya leído la URL, nunca antes. */
+  function cleanUrl() {
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
+  /* URL de esta misma página, sin hash ni query — es la que Supabase
+     debe tener en Authentication → URL Configuration. */
+  function selfUrl() {
+    return window.location.origin + window.location.pathname;
+  }
+
   /* ── helpers DOM ─────────────────────────── */
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -92,17 +135,25 @@
       return;
     }
 
-    /* sesión real previa */
-    db.auth.getSession().then(function (res) {
-      var session = res.data && res.data.session;
-      if (session && session.user) {
-        if (isAllowed(session.user.email)) {
-          enterAdmin(session.user.email);
-        } else {
-          db.auth.signOut();
+    initForgot();
+
+    /* Llegada desde un enlace de correo: hay que definir la contraseña
+       antes de entrar, aunque el token del enlace ya haya creado sesión. */
+    if (authLink.active) {
+      initSetPassword();
+    } else {
+      /* sesión real previa */
+      db.auth.getSession().then(function (res) {
+        var session = res.data && res.data.session;
+        if (session && session.user) {
+          if (isAllowed(session.user.email)) {
+            enterAdmin(session.user.email);
+          } else {
+            db.auth.signOut();
+          }
         }
-      }
-    });
+      });
+    }
 
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -142,6 +193,136 @@
           btn.disabled = false;
           btn.textContent = 'Ingresar';
         });
+    });
+  }
+
+  /* ══════════════════════════════════════════
+     DEFINIR CONTRASEÑA (invitación / recuperación)
+  ══════════════════════════════════════════ */
+  function initSetPassword() {
+    var form = $('setpw-form');
+    var error = $('setpw-error');
+    var btn = $('setpw-submit');
+
+    $('login-card').hidden = true;
+    $('setpw-card').hidden = false;
+
+    if (authLink.type === 'recovery') {
+      $('setpw-title').textContent = 'Nueva contraseña';
+      $('setpw-sub').textContent = 'Elige una contraseña nueva para tu cuenta.';
+    }
+
+    function fail(msg) {
+      error.textContent = msg;
+      error.hidden = false;
+    }
+
+    /* Enlace inservible: se explica y se ofrece volver al login. */
+    function killLink(msg) {
+      form.hidden = true;
+      $('setpw-dead-msg').textContent = msg;
+      $('setpw-dead').hidden = false;
+    }
+
+    $('setpw-back').addEventListener('click', function () {
+      $('setpw-card').hidden = true;
+      $('login-card').hidden = false;
+    });
+
+    if (authLink.error) {
+      cleanUrl();
+      killLink(/expired|invalid/i.test(authLink.error)
+        ? 'Este enlace ya venció o fue usado. Pide que te envíen uno nuevo.'
+        : 'Este enlace no es válido (' + authLink.error + ').');
+      return;
+    }
+
+    /* El token del enlace crea la sesión; getSession() espera a que
+       supabase-js termine de leer la URL antes de responder. */
+    btn.disabled = true;
+    db.auth.getSession().then(function (res) {
+      var session = res.data && res.data.session;
+      cleanUrl();
+
+      if (!session || !session.user) {
+        killLink('Este enlace ya venció o fue usado. Pide que te envíen uno nuevo.');
+        return;
+      }
+      if (!isAllowed(session.user.email)) {
+        db.auth.signOut();
+        killLink('El correo ' + session.user.email + ' no tiene acceso al panel.');
+        return;
+      }
+      $('setpw-email').textContent = session.user.email;
+      $('setpw-email').hidden = false;
+      btn.disabled = false;
+    });
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      error.hidden = true;
+
+      var pw = $('setpw-password').value;
+      var pw2 = $('setpw-confirm').value;
+
+      if (pw.length < 8) { fail('La contraseña debe tener al menos 8 caracteres.'); return; }
+      if (pw !== pw2) { fail('Las contraseñas no coinciden.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+
+      db.auth.updateUser({ password: pw })
+        .then(function (res) {
+          if (res.error) {
+            fail('No se pudo guardar la contraseña. El enlace pudo vencer; pide uno nuevo.');
+            return;
+          }
+          $('setpw-card').hidden = true;
+          $('login-card').hidden = false;
+          enterAdmin(res.data.user.email);
+        })
+        .catch(function () {
+          fail('No se pudo conectar. Revisa tu internet.');
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = 'Guardar contraseña y entrar';
+        });
+    });
+  }
+
+  /* ── ¿Olvidaste tu contraseña? ────────────── */
+  function initForgot() {
+    var btn = $('forgot-btn');
+    var note = $('forgot-note');
+
+    btn.addEventListener('click', function () {
+      var email = $('login-email').value.trim();
+      note.hidden = true;
+      $('login-error').hidden = true;
+
+      if (!email) {
+        note.textContent = 'Escribe tu correo arriba y vuelve a tocar aquí.';
+        note.hidden = false;
+        return;
+      }
+      if (!isAllowed(email)) {
+        note.textContent = 'Este correo no tiene acceso al panel.';
+        note.hidden = false;
+        return;
+      }
+
+      btn.disabled = true;
+      db.auth.resetPasswordForEmail(email, { redirectTo: selfUrl() })
+        .then(function () {
+          note.textContent = 'Te enviamos un correo con el enlace para cambiar tu contraseña.';
+          note.hidden = false;
+        })
+        .catch(function () {
+          note.textContent = 'No se pudo enviar el correo. Revisa tu internet.';
+          note.hidden = false;
+        })
+        .then(function () { btn.disabled = false; });
     });
   }
 

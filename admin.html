@@ -17,7 +17,7 @@
        VISTA LOGIN
   ══════════════════════════════════════════════════ -->
   <div class="login-view" id="login-view">
-    <div class="login-card">
+    <div class="login-card" id="login-card">
       <a href="index.html" class="login-back" aria-label="Volver al sitio">← Volver al sitio</a>
       <img src="assets/img/logo.png" alt="la Mona" class="login-logo" width="88" height="88" />
       <h1 class="login-title">Panel de administración</h1>
@@ -34,6 +34,8 @@
         </label>
         <p class="login-error" id="login-error" role="alert" hidden></p>
         <button type="submit" class="btn-primary btn-block" id="login-submit">Ingresar</button>
+        <button type="button" class="login-link" id="forgot-btn">¿Olvidaste tu contraseña?</button>
+        <p class="login-note" id="forgot-note" role="status" hidden></p>
       </form>
 
       <!-- Aviso de modo demo (solo si Supabase no está configurado) -->
@@ -41,6 +43,34 @@
         <p>Supabase aún no está configurado, así que no hay base de datos conectada.
            Puedes explorar el panel en modo demo — los cambios no se guardan.</p>
         <button type="button" class="btn-ghost btn-block" id="demo-btn">Entrar en modo demo</button>
+      </div>
+    </div>
+
+    <!-- Tarjeta para definir contraseña (llegada desde un enlace de
+         invitación o de recuperación enviado por Supabase) -->
+    <div class="login-card" id="setpw-card" hidden>
+      <img src="assets/img/logo.png" alt="la Mona" class="login-logo" width="88" height="88" />
+      <h1 class="login-title" id="setpw-title">Crea tu contraseña</h1>
+      <p class="login-sub" id="setpw-sub">Elige una contraseña para entrar al panel.</p>
+
+      <form id="setpw-form" novalidate>
+        <p class="setpw-email" id="setpw-email" hidden></p>
+        <label class="field">
+          <span class="field-label">Nueva contraseña</span>
+          <input type="password" id="setpw-password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Repite la contraseña</span>
+          <input type="password" id="setpw-confirm" autocomplete="new-password" placeholder="••••••••" required />
+        </label>
+        <p class="login-error" id="setpw-error" role="alert" hidden></p>
+        <button type="submit" class="btn-primary btn-block" id="setpw-submit">Guardar contraseña y entrar</button>
+      </form>
+
+      <!-- Enlace vencido, ya usado o correo sin permiso -->
+      <div class="login-demo" id="setpw-dead" hidden>
+        <p id="setpw-dead-msg"></p>
+        <button type="button" class="btn-ghost btn-block" id="setpw-back">Ir al inicio de sesión</button>
       </div>
     </div>
   </div>

@@ -54,11 +54,15 @@ create policy "escritura admins"
   to authenticated
   using (
     (auth.jwt() ->> 'email') in (
-      'davidwp37@gmail.com'
+      'davidwp37@gmail.com',
+      'alandeo@pucp.edu.pe',
+      'karina_jesica_v@hotmail.com'
     )
   )
   with check (
     (auth.jwt() ->> 'email') in (
-      'davidwp37@gmail.com'
+      'davidwp37@gmail.com',
+      'alandeo@pucp.edu.pe',
+      'karina_jesica_v@hotmail.com'
     )
   );
