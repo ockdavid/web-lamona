@@ -488,6 +488,51 @@ input, select, textarea { font: inherit; color: var(--text); }
   box-shadow: var(--shadow);
 }
 
+/* ══════════ Destacados ══════════ */
+.p-card.featured {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.p-card-order {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(60, 40, 45, 0.18);
+}
+.p-order-btn {
+  width: 30px;               /* cómodo para el dedo en móvil */
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent-dark);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.p-order-btn:hover:not(:disabled) { background: rgba(192, 120, 144, 0.16); }
+.p-order-btn:disabled { opacity: 0.28; cursor: default; }
+.p-order-pos {
+  min-width: 18px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.field-hint {
+  margin: -10px 0 16px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-light);
+}
+
 .drawer-photo-actions {
   display: flex;
   flex-wrap: wrap;

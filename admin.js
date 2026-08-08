@@ -16,6 +16,7 @@
 
   var db = null;            /* cliente supabase */
   var demoMode = false;
+  var soportaDestacados = false;  /* true si la columna featured_rank existe */
   var products = [];        /* estado local de productos */
   var dirty = {};           /* ids con cambios sin guardar */
   var currentId = null;     /* producto abierto en el drawer */
@@ -460,6 +461,7 @@
   function loadProducts() {
     if (demoMode) {
       products = BRAND.products.map(fromManifest);
+      soportaDestacados = true;   /* sin BD que romper: se puede probar todo */
       renderAll();
       return;
     }
@@ -473,6 +475,16 @@
           return;
         }
         products = res.data || [];
+
+        /* ¿existe ya la columna de destacados? Si supabase/destacados.sql
+           no se ha ejecutado, se oculta esa función en vez de mandar un
+           campo inexistente, que haría fallar CUALQUIER guardado. */
+        soportaDestacados = products.length > 0 &&
+          Object.prototype.hasOwnProperty.call(products[0], 'featured_rank');
+        $('edit-featured').closest('.switch-field').hidden = !soportaDestacados;
+        var hint = $('edit-featured').closest('.switch-field').nextElementSibling;
+        if (hint && hint.classList.contains('field-hint')) hint.hidden = !soportaDestacados;
+
         $('import-banner').hidden = products.length > 0;
         renderAll();
       });
@@ -539,7 +551,15 @@
 
   function renderGrid() {
     var grid = $('product-grid');
-    var list = visibleProducts();
+    /* los destacados primero y en su orden; el resto conserva el suyo
+       (Array.sort es estable, así que no se descoloca nada) */
+    var list = visibleProducts().slice().sort(function (a, b) {
+      var fa = a.featured_rank, fb = b.featured_rank;
+      if (fa != null && fb != null) return fa - fb;
+      if (fa != null) return -1;
+      if (fb != null) return 1;
+      return 0;
+    });
     $('grid-empty').hidden = list.length > 0;
     $('product-count').textContent =
       list.length + ' de ' + products.length + ' piezas';
@@ -571,6 +591,31 @@
         '    <span class="p-card-price">S/. ' + esc(p.price != null ? p.price : '') + '</span>' +
         '  </div>' +
         '</div>';
+
+      /* flechas de orden, solo en los destacados */
+      if (p.featured_rank != null) {
+        card.classList.add('featured');
+        var pos = destacados();
+        var idx = -1;
+        for (var k = 0; k < pos.length; k++) { if (pos[k].id === p.id) { idx = k; break; } }
+
+        var nav = document.createElement('div');
+        nav.className = 'p-card-order';
+        nav.innerHTML =
+          '<button type="button" class="p-order-btn" data-dir="-1" aria-label="Subir"' +
+          (idx <= 0 ? ' disabled' : '') + '>&#8593;</button>' +
+          '<span class="p-order-pos">' + (idx + 1) + '</span>' +
+          '<button type="button" class="p-order-btn" data-dir="1" aria-label="Bajar"' +
+          (idx >= pos.length - 1 ? ' disabled' : '') + '>&#8595;</button>';
+
+        nav.addEventListener('click', function (ev) {
+          var b = ev.target.closest ? ev.target.closest('.p-order-btn') : null;
+          if (!b || b.disabled) return;
+          ev.stopPropagation();          /* no abrir el editor al pulsar la flecha */
+          moverDestacado(p.id, parseInt(b.getAttribute('data-dir'), 10));
+        });
+        card.appendChild(nav);
+      }
 
       function open() { openDrawer(p.id); }
       card.addEventListener('click', open);
@@ -612,6 +657,7 @@
     $('edit-photo').value = p.photo || '';
     $('edit-photo-preview').src = p.photo || '';
     $('edit-active').checked = p.active !== false;
+    $('edit-featured').checked = p.featured_rank != null;
     $('photo-picker').hidden = true;
     photoStatus('');   /* el aviso del producto anterior no se queda pegado */
 
@@ -654,6 +700,14 @@
     });
     $('edit-description').addEventListener('input', function () { applyField('description', this.value); });
     $('edit-active').addEventListener('change', function () { applyField('active', this.checked); });
+
+    $('edit-featured').addEventListener('change', function () {
+      var p = findProduct(currentId);
+      if (!p) return;
+      alternarDestacado(p, this.checked);
+      renderGrid();
+      updateSaveAll();
+    });
     $('edit-photo').addEventListener('input', function () {
       $('edit-photo-preview').src = this.value;
       applyField('photo', this.value);
@@ -810,7 +864,7 @@
      GUARDADO / BORRADO
   ══════════════════════════════════════════ */
   function rowFor(p) {
-    return {
+    var fila = {
       id: p.id,
       name: p.name,
       category: p.category,
@@ -822,6 +876,59 @@
       active: p.active !== false,
       sort_order: p.sort_order || 0
     };
+    /* solo si la columna existe: ver soportaDestacados en loadProducts */
+    if (soportaDestacados) {
+      fila.featured_rank = p.featured_rank == null ? null : p.featured_rank;
+    }
+    return fila;
+  }
+
+  /* ══════════════════════════════════════════
+     DESTACADOS (salen primero en la web)
+  ══════════════════════════════════════════ */
+  function destacados() {
+    return products
+      .filter(function (p) { return p.featured_rank != null; })
+      .sort(function (a, b) { return a.featured_rank - b.featured_rank; });
+  }
+
+  /* Renumera 1,2,3… para que no queden huecos al quitar uno del medio. */
+  function renumerarDestacados(lista) {
+    (lista || destacados()).forEach(function (p, i) {
+      if (p.featured_rank !== i + 1) {
+        p.featured_rank = i + 1;
+        dirty[p.id] = true;
+      }
+    });
+  }
+
+  function moverDestacado(id, dir) {
+    var lista = destacados();
+    var i = -1;
+    for (var k = 0; k < lista.length; k++) { if (lista[k].id === id) { i = k; break; } }
+    var j = i + dir;
+    if (i < 0 || j < 0 || j >= lista.length) return;   /* ya está en el extremo */
+
+    var tmp = lista[i];
+    lista[i] = lista[j];
+    lista[j] = tmp;
+
+    renumerarDestacados(lista);
+    renderAll();
+  }
+
+  function alternarDestacado(p, activar) {
+    if (activar) {
+      var max = 0;
+      products.forEach(function (x) {
+        if (x.featured_rank != null && x.featured_rank > max) max = x.featured_rank;
+      });
+      p.featured_rank = max + 1;
+    } else {
+      p.featured_rank = null;
+    }
+    dirty[p.id] = true;
+    renumerarDestacados();
   }
 
   function clearDirty(ids) {
@@ -910,6 +1017,7 @@
         tag: '',
         active: true,
         sort_order: maxSort + 1,
+        featured_rank: null,
         _isNew: true
       };
       products.push(p);
