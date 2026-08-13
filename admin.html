@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="admin.css?v=20260814a" />
 </head>
 <body>
 
@@ -35,7 +35,6 @@
         <p class="login-error" id="login-error" role="alert" hidden></p>
         <button type="submit" class="btn-primary btn-block" id="login-submit">Ingresar</button>
         <button type="button" class="login-link" id="forgot-btn">¿Olvidaste tu contraseña?</button>
-        <button type="button" class="login-link" id="to-signup-btn">¿Primera vez? Crea tu cuenta</button>
         <p class="login-note" id="forgot-note" role="status" hidden></p>
       </form>
 
@@ -45,33 +44,6 @@
            Puedes explorar el panel en modo demo — los cambios no se guardan.</p>
         <button type="button" class="btn-ghost btn-block" id="demo-btn">Entrar en modo demo</button>
       </div>
-    </div>
-
-    <!-- Tarjeta de registro. Solo sirve para los correos del allowlist;
-         cualquier otro se rechaza antes de llamar a Supabase. -->
-    <div class="login-card" id="signup-card" hidden>
-      <img src="assets/img/logo.png" alt="la Mona" class="login-logo" width="88" height="88" />
-      <h1 class="login-title">Crea tu cuenta</h1>
-      <p class="login-sub">Solo para los correos del equipo de la Mona</p>
-
-      <form id="signup-form" novalidate>
-        <label class="field">
-          <span class="field-label">Correo electrónico</span>
-          <input type="email" id="signup-email" autocomplete="email" placeholder="tu@correo.com" required />
-        </label>
-        <label class="field">
-          <span class="field-label">Contraseña</span>
-          <input type="password" id="signup-password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required />
-        </label>
-        <label class="field">
-          <span class="field-label">Repite la contraseña</span>
-          <input type="password" id="signup-confirm" autocomplete="new-password" placeholder="••••••••" required />
-        </label>
-        <p class="login-error" id="signup-error" role="alert" hidden></p>
-        <button type="submit" class="btn-primary btn-block" id="signup-submit">Crear cuenta</button>
-        <button type="button" class="login-link" id="to-login-btn">Ya tengo cuenta — iniciar sesión</button>
-      </form>
-      <p class="login-note" id="signup-note" role="status" hidden></p>
     </div>
 
     <!-- Tarjeta para definir contraseña (llegada desde un enlace de
@@ -269,6 +241,9 @@
   <script src="lib/supabase.min.js"></script>
   <script src="lib/supabase-config.js"></script>
   <script src="lib/manifest.js"></script>
-  <script src="admin.js"></script>
+  <!-- OJO: sube el ?v= al tocar admin.js o admin.css. El JS se cachea un
+       año y el HTML no; si se mezcla el HTML nuevo con el JS viejo, el JS
+       busca elementos que ya no existen y el login deja de funcionar. -->
+  <script src="admin.js?v=20260814a"></script>
 </body>
 </html>

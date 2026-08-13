@@ -146,7 +146,6 @@
     }
 
     initForgot();
-    initSignup();
 
     /* Llegada desde un enlace de correo: hay que definir la contraseña
        antes de entrar, aunque el token del enlace ya haya creado sesión. */
@@ -299,86 +298,6 @@
         .then(function () {
           btn.disabled = false;
           btn.textContent = 'Guardar contraseña y entrar';
-        });
-    });
-  }
-
-  /* ══════════════════════════════════════════
-     REGISTRO
-     Solo acepta los correos del allowlist. Es un filtro de interfaz:
-     quien llame a la API de Supabase directamente puede registrarse
-     igual, pero la política RLS le impide escribir nada.
-  ══════════════════════════════════════════ */
-  function initSignup() {
-    var form = $('signup-form');
-    var error = $('signup-error');
-    var note = $('signup-note');
-    var btn = $('signup-submit');
-
-    $('to-signup-btn').addEventListener('click', function () {
-      $('signup-email').value = $('login-email').value.trim();
-      $('login-card').hidden = true;
-      $('signup-card').hidden = false;
-    });
-    $('to-login-btn').addEventListener('click', function () {
-      $('signup-card').hidden = true;
-      $('login-card').hidden = false;
-    });
-
-    function fail(msg) {
-      error.textContent = msg;
-      error.hidden = false;
-    }
-    var YA_EXISTE = 'Ya existe una cuenta con este correo. Inicia sesión, o usa ' +
-                    '"¿Olvidaste tu contraseña?" si no la recuerdas.';
-
-    form.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      error.hidden = true;
-      note.hidden = true;
-
-      var email = $('signup-email').value.trim();
-      var pw = $('signup-password').value;
-      var pw2 = $('signup-confirm').value;
-
-      if (!email) { fail('Escribe tu correo.'); return; }
-      if (!isAllowed(email)) { fail('Este correo no tiene acceso al panel.'); return; }
-      if (pw.length < 8) { fail('La contraseña debe tener al menos 8 caracteres.'); return; }
-      if (pw !== pw2) { fail('Las contraseñas no coinciden.'); return; }
-
-      btn.disabled = true;
-      btn.textContent = 'Creando…';
-
-      db.auth.signUp({ email: email, password: pw, options: { emailRedirectTo: selfUrl() } })
-        .then(function (res) {
-          if (res.error) {
-            fail(/already|registered/i.test(res.error.message)
-              ? YA_EXISTE
-              : 'No se pudo crear la cuenta. ' + res.error.message);
-            return;
-          }
-          var user = res.data && res.data.user;
-
-          /* Supabase devuelve un usuario con identities vacío cuando el
-             correo ya estaba registrado, para no delatar quién tiene cuenta. */
-          if (user && user.identities && user.identities.length === 0) {
-            fail(YA_EXISTE);
-            return;
-          }
-          /* Con "Confirm email" desactivado la sesión llega de una vez. */
-          if (res.data && res.data.session) {
-            enterAdmin(user.email);
-            return;
-          }
-          form.hidden = true;
-          note.textContent = 'Cuenta creada. Te enviamos un correo para confirmarla: ' +
-                             'ábrelo y luego podrás entrar al panel.';
-          note.hidden = false;
-        })
-        .catch(function () { fail('No se pudo conectar. Revisa tu internet.'); })
-        .then(function () {
-          btn.disabled = false;
-          btn.textContent = 'Crear cuenta';
         });
     });
   }
